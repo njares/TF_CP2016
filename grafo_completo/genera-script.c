@@ -12,6 +12,13 @@ unsigned int rutas(int * Delta_aux, int i,int j,int * A, float p,float t_max,uns
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1;
 
+typedef struct delta {
+    int * val;
+    unsigned int largo;
+    struct delta * next;
+} delta_t;
+
+
 int main(){
 	size_t A_size = A_x * A_y * sizeof(int);
 	size_t c_a_size = c_a_x * c_a_y * sizeof(float);
@@ -38,7 +45,6 @@ int main(){
 	float t_max=3;
 	//genera_D_G(’data/input/g_OD’,A,p,3,30);
 	genera_D_G("data/input/g_OD",A,c_a,p,t_max,r_max);
-
 	free(A);
 	free(c_a);
 	return 0;
@@ -75,14 +81,14 @@ void genera_D_G(char * ruta, int * A,float * c_a,float p,float t_max,unsigned in
 	size_t g_size = g_x * g_y * sizeof(int);
 	size_t delta_size = c_a_x * r_max * 2 * sizeof(int);
 	int * g_OD = malloc(g_size);
-	int * delta_aux = malloc(delta_size); // Delta=[];
-// usar linked lists para los arreglos incrementales, total no tengo que 
-// accederlos nunca salvo para escribirlos al final	
+	int * delta_aux = malloc(delta_size);
+	delta_t * delta_head = NULL; // Delta=[];
+	delta_head=malloc(sizeof(delta_t));
+	delta_t * current = delta_head;
 	int * ignorados = malloc(g_size); // ignorados=[];
 	clock_t end,start;
 	float t=0; // t=0;
 	memset(ignorados, -1, g_size);
-	memset(delta_aux, 0, delta_size);
 	// g_OD=load(input1);
 	cargar_int(g_OD,ruta,g_x,g_y);
 	for (int i=0;i<g_x;i++){ // for i=1:rows(g_OD)
@@ -90,6 +96,7 @@ void genera_D_G(char * ruta, int * A,float * c_a,float p,float t_max,unsigned in
 		// printf("Procesando par %d de %d...\n",i,rows(g_OD))
 		printf("Procesando par %d de %d...\n",i+1,g_x); 
 		// y=rutas(g_OD(i,1),g_OD(i,2),A,p,t_max,r_max);
+		memset(delta_aux, 0, delta_size);
 		cant_rutas=rutas(delta_aux,g_OD[idx(i,0,g_y)],g_OD[idx(i,1,g_y)],A,p,t_max,r_max);
 		// printf("Procesado par %d de %d\n",i,rows(g_OD))
 		printf("Procesado par %d de %d\n",i+1,g_x);
@@ -99,27 +106,45 @@ void genera_D_G(char * ruta, int * A,float * c_a,float p,float t_max,unsigned in
 			// printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i)
 			printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i+1);
 		} else { // else
-/*
-			Delta=[Delta;y];
-*/
+			current->val=malloc(delta_size);
+			memcpy(current->val,delta_aux,delta_size); // Delta=[Delta;y];
+			current->largo=cant_rutas;
+			current->val=realloc(current->val,current->largo*sizeof(int));
+			current->next=malloc(sizeof(delta_t));
+			current->next->next=NULL;
+			current=current->next;
 		} // endif
 		end=clock();
 		t+= (float) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
 		// printf("Transcurrieron %d segundos. Tiempo restante estimado: %d segundos\n",t,t*(rows(g_OD)-i)/i)
 		printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i+1)/(i+1));
 	} // endfor
+	current=delta_head;
+	FILE * delta_file;
+	FILE * gamma_file;
+	FILE * ignorados_file;
+	delta_file=fopen("data/output/Delta","w+");
+	gamma_file=fopen("data/output/Gamma","w+");
+	ignorados_file=fopen("data/output/ignorados","w+");
 /*
-			i_1=rows(Delta);
-			i_2=rows(Delta);
-			Gamma(rows(Gamma)+1,rows(Delta))=0;
-			Gamma(rows(Gamma),:)=sparse(1,[i_1+1:i_2],1,1,rows(Delta));	
-	Gamma=sparse([],[],[]);
-	[i j x]=find(Delta);
-	dlmwrite("data/output/Delta",[i j x],'	')
-	[i j x]=find(Gamma);
-	dlmwrite("data/output/Gamma",[i j x],'	')
-	dlmwrite("data/output/ignorados",ignorados,'	')
-*/	
+	while(current->val != NULL){
+		for (int j=0;j<current->largo;j++){
+			fprintf(delta_file,"%d ",current->val[j]); // dlmwrite("data/output/Delta",[i j x],'	')
+		}
+		fprintf(gamma_file,"%d\n",current->largo); // dlmwrite("data/output/Gamma",[i j x],'	')
+		fprintf(delta_file,"\n",current->val[j]);
+		current=current->next;
+	}
+*/
+	for (int i=0;i<i_ign;i++){
+		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
+	}
+	while(delta_head != NULL){
+		current=delta_head;
+		delta_head=delta_head->next;
+		free(current->val);
+		free(current);
+	}
 	free(g_OD);
 	free(ignorados);
 	free(delta_aux);
