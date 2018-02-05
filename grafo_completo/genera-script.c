@@ -11,11 +11,13 @@ void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_si
 void genera_D_G(char * ruta, int * A, float * c_a, float p,float t_max,unsigned int r_max);
 unsigned int rutas(int * delta_aux, int i, int j,
 	int * A, float * nodos, float p, float t_max, unsigned int r_max, float * c_a);
-unsigned int a_star(int * y_aux, int i, int j, int * A, float * nodos, float * c_a);
+unsigned int a_star(unsigned int * y_aux, int i, int j, int * A, float * nodos, float * c_a);
 unsigned int salientes(int * i_1, int o, int * A);
 unsigned int entrantes(int * i_1, int d, int * A);
+unsigned int indice_min(int * n_star);
+unsigned int arista(unsigned int i_star, unsigned int i_1, int * A);
 
-unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1;
+unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
 
 typedef struct delta {
     int * val;
@@ -82,7 +84,7 @@ void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_si
 }
 
 void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigned int r_max){
-	unsigned int g_x=2990,g_y=2,cant_rutas,i_ign=0,n_x=5237,n_y=2;
+	unsigned int g_x=2990,g_y=2,cant_rutas,i_ign=0;
 	size_t g_size = g_x * g_y * sizeof(int);
 	size_t delta_size = c_a_x * r_max * 2 * sizeof(int);
 	size_t nodos_size = n_x * n_y * sizeof(float);
@@ -162,7 +164,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 	int * A, float * nodos, float p, float t_max,unsigned int r_max, float * c_a)
 {
 	unsigned int largo_y_aux;
-	int y_aux[100];
+	unsigned int y_aux[100];
 	largo_y_aux=a_star(y_aux,i,j,A,nodos,c_a); // y_aux=a_star(i,j,A); % busca el camino mas corto con A*
 	if (largo_y_aux==0){ // if (length(y_aux)==0)
 		return 0; // y=[];
@@ -298,77 +300,90 @@ unsigned int rutas(int * delta_aux, int i,int j,
 } // endfunction
 
 /*
-# NOTA: usa dist_n.m y arista.m
+# NOTA: usa dist_n.m
 */
 
-unsigned int a_star(int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
-	int i_1[30],i_1_size;
-/*
-	closed=[];
-*/
+unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
+	size_t n_size = n_x * 4 * sizeof(float);
+	unsigned int i_1[30],i_1_size,open_size=0,i_star,flag,ruta_reves[100],i_r=0;
+	float * n_star = malloc(n_size); // [conjunto costo_acum costo_falt came_from]
+	float h_aux,current[4],g_aux;
+	memset(n_star, -1, n_size); // closed=[]; // came_from=zeros(rows(nodos),1);
 	if (o>0) { // if(o>0) % si el grafo debe recorrerse 'mano'
 		// % si origen y destino %*están*) a menos de 300 m
-		if ( fabs(nodos[idx(o-1,0,2)]-nodos[idx(d-1,0,2)])*94870 +
-			 fabs(nodos[idx(o-1,1,2)]-nodos[idx(d-1,1,2)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
+		if ( fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
+			 fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
 			i_1_size=salientes(i_1,o,A); // i_1=(salientes(o,A))(1);
 			y_aux[0]=o;
 			y_aux[1]=i_1[0]; // y=[o i_1];
 			return 2;
 		} else { // else
-			return 0;
-/*
-			h_aux=sum(abs(nodos(o,:)-nodos(d,:)));
-			open=[o 0 h_aux];
-			came_from=zeros(rows(nodos),1);
-			while (rows(open)!=0)
-				[x i]=min(open(:,2)+open(:,3));
-% guardo el nodo mas barato en current
-				current=open(i,:);	
-				if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
-% si estoy a menos de 300 m del destino, termino
-					break;
-				endif
-% agrego el nodo actual a closed
-				closed=[closed;open(i,:)];
-				i_aux=setdiff([1:rows(open)],i);
-% saco el nodo actual de open
-				open=open(i_aux,:); 
-% busco los vecinos de current
-				i_1=salientes(current(1),A); 
-				for i=1:rows(i_1)
-% si ya esta en closed, sigo
-					if (length(find(closed(:,1)==i_1(i))))
-						continue;
-					endif
-					g_aux=current(2)+c_a(find(arista(current(1),i_1(i),A)));
-					h_aux=sum(abs(nodos(i_1(i),:)-nodos(d,:)));
-					if (length(find(open(:,1)==i_1(i)))) 
-% si ya %*está*) en open, lo dejo con el menor costo
-						i_aux=find(open(:,1)==i_1(i));
-						if(open(i_aux,2)>g_aux)
-							open(i_aux,2)=g_aux;
-							came_from(open(i_aux,1))=current(1);
-						endif
-					else	
-% si no %*está*) en open, lo agrego
-						open=[open;[i_1(i) g_aux h_aux]];
-						came_from(i_1(i))=current(1);
-					endif
-				endfor
-			endwhile
-			if (rows(open)==0)
-				y=[];
-			else
-% reconstruyo el camino
-				flag=current(1);
-				y=current(1);
-				while (flag!=o)
-					y=[came_from(flag);y];
-					flag=came_from(flag);
-				endwhile
-				y=y';
-			endif
-*/
+			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
+					fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)]); // h_aux=sum(abs(nodos(o,:)-nodos(d,:)));
+			n_star[idx(o-1,0,4)]=1;
+			n_star[idx(o-1,1,4)]=0;
+			n_star[idx(o-1,2,4)]=h_aux;
+			open_size++; // open=[o 0 h_aux];
+			while (open_size!=0) { // while (rows(open)!=0)
+				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
+				// % guardo el nodo mas barato en current
+				memcpy(current,n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
+					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
+					// % si estoy a menos de 300 m del destino, termino
+					break; // break;
+				} // endif
+				// % agrego el nodo actual a closed
+				// closed=[closed;open(i,:)];
+				// % saco el nodo actual de open
+				// i_aux=setdiff([1:rows(open)],i);
+				n_star[idx(i_star,0,4)]=2; 
+				open_size--; // open=open(i_aux,:);
+				// % busco los vecinos de current
+				i_1_size=salientes(i_1,i_star+1,A); // i_1=salientes(current(1),A);
+				for (int i=0;i<i_1_size;i++) { // for i=1:rows(i_1)
+					// % si ya esta en closed, sigo
+					if (n_star[idx(i_1[i]-1,0,4)] == 2) { // if (length(find(closed(:,1)==i_1(i))))
+						continue; // continue;
+					} // endif
+					g_aux=current[1]+c_a[arista(i_star,i_1[i],A)-1]; // g_aux=current(2)+c_a(find(arista(current(1),i_1(i),A)));
+					h_aux=fabs(nodos[idx(i_1[i]-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
+						  fabs(nodos[idx(i_1[i]-1,1,n_y)]-nodos[idx(d-1,1,n_y)]); // h_aux=sum(abs(nodos(i_1(i),:)-nodos(d,:)));
+					if (n_star[idx(i_1[i]-1,0,4)] == 1) { // if (length(find(open(:,1)==i_1(i)))) 
+						// % si ya %*está*) en open, lo dejo con el menor costo
+						// i_aux=find(open(:,1)==i_1(i));
+						if (n_star[idx(i_1[i]-1,1,4)]>g_aux) { // if(open(i_aux,2)>g_aux)
+							n_star[idx(i_1[i]-1,1,4)]=g_aux; // open(i_aux,2)=g_aux;
+							n_star[idx(i_1[i]-1,3,4)]=i_star; // came_from(open(i_aux,1))=current(1);
+						} // endif
+					} else { // else
+						// % si no %*está*) en open, lo agrego
+						open_size++;
+						n_star[idx(i_1[i]-1,0,4)]=1;
+						n_star[idx(i_1[i]-1,1,4)]=g_aux;
+						n_star[idx(i_1[i]-1,2,4)]=h_aux; // open=[open;[i_1(i) g_aux h_aux]];
+						n_star[idx(i_1[i]-1,3,4)]=i_star; // came_from(i_1(i))=current(1);
+					} // endif
+				} // endfor
+			} // endwhile
+			if (open_size==0) { // if (rows(open)==0)
+				return 0; // y=[];
+			} else { // else
+				// % reconstruyo el camino
+				flag=i_star; // flag=current(1);
+				ruta_reves[i_r]=i_star; // y=current(1);
+				i_r++;
+				while (flag!=o-1) { // while (flag!=o)
+					ruta_reves[i_r]=n_star[idx(flag,3,4)];
+					i_r++; // y=[came_from(flag);y];
+					flag=n_star[idx(flag,3,4)]; // flag=came_from(flag);
+				} // endwhile
+				// y=y';
+				for (int i=0;i<i_r;i++) {
+					y_aux[i]=ruta_reves[i_r-i-1];
+				}
+				return i_r;
+			} // endif
 		} // endif
 	} else { // else % si el grafo debe recorrerse 'contramano'
 		o=-o; // o=-o;
@@ -380,63 +395,69 @@ unsigned int a_star(int * y_aux, int o, int d, int * A, float * nodos, float * c
 			y_aux[1]=d; // y=[i_1 d];
 			return 2;
 		} else { // else
-			return 0;
-/*
-			h_aux=sum(abs(nodos(o,:)-nodos(d,:)));
-			open=[d 0 h_aux];
-			came_from=zeros(rows(nodos),1);
-			while (rows(open)!=0)
-				[x i]=min(open(:,2)+open(:,3));
-				current=open(i,:);
-				if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
-					break;
-				endif
-				closed=[closed;open(i,:)];
-				i_aux=setdiff([1:rows(open)],i);
-				open=open(i_aux,:);
-				i_1=entrantes(current(1),A);
-				for i=1:rows(i_1)
-					if (length(find(closed(:,1)==i_1(i))))
-						continue;
-					endif
-					g_aux=current(2)+c_a(find(arista(i_1(i),current(1),A)));
-					h_aux=sum(abs(nodos(i_1(i),:)-nodos(o,:)));
-					if (length(find(open(:,1)==i_1(i)))) 
-						i_aux=find(open(:,1)==i_1(i));
-						if(open(i_aux,2)>g_aux)
-							open(i_aux,2)=g_aux;
-							came_from(open(i_aux,1))=current(1);
-						endif	
-					else
-						open=[open;[i_1(i) g_aux h_aux]];
-						came_from(i_1(i))=current(1);
-					endif
-				endfor
-			endwhile
-			if (rows(open)==0)
-				y=[];
-			else
-				flag=current(1);
-				y=current(1);
-				while (flag!=d)
-					y=[y;came_from(flag)];
-					flag=came_from(flag);
-				endwhile
-				y=y';
-			endif
-*/			
+			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
+					fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)]); // h_aux=sum(abs(nodos(o,:)-nodos(d,:)));
+			n_star[idx(d-1,0,4)]=1;
+			n_star[idx(d-1,1,4)]=0;
+			n_star[idx(d-1,2,4)]=h_aux;
+			open_size++; // open=[d 0 h_aux];
+			while (open_size!=0) { // while (rows(open)!=0)
+				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
+				memcpy(current,n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(o-1,0,n_y)])*94870 +
+					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(o-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
+					break; // break;
+				} // endif
+				// closed=[closed;open(i,:)];
+				// i_aux=setdiff([1:rows(open)],i);
+				n_star[idx(i_star,0,4)]=2; 
+				open_size--; // open=open(i_aux,:);
+				i_1_size=entrantes(i_1,i_star+1,A); // i_1=entrantes(current(1),A);
+				for (int i=0;i<i_1_size;i++) { // for i=1:rows(i_1)
+					if (n_star[idx(i_1[i]-1,0,4)] == 2) { // if (length(find(closed(:,1)==i_1(i))))
+						continue; // continue;
+					} // endif
+					g_aux=current[1]+c_a[arista(i_1[i],i_star,A)-1]; // g_aux=current(2)+c_a(find(arista(i_1(i),current(1),A)));
+					h_aux=fabs(nodos[idx(i_1[i]-1,0,n_y)]-nodos[idx(o-1,0,n_y)]) +
+						  fabs(nodos[idx(i_1[i]-1,1,n_y)]-nodos[idx(o-1,1,n_y)]); // h_aux=sum(abs(nodos(i_1(i),:)-nodos(o,:)));
+					if (n_star[idx(i_1[i]-1,0,4)] == 1) { // if (length(find(open(:,1)==i_1(i)))) 
+						if (n_star[idx(i_1[i]-1,1,4)]>g_aux) { // if(open(i_aux,2)>g_aux)
+							n_star[idx(i_1[i]-1,1,4)]=g_aux; // open(i_aux,2)=g_aux;
+							n_star[idx(i_1[i]-1,3,4)]=i_star; // came_from(open(i_aux,1))=current(1);
+						} // endif
+					} else { // else
+						open_size++;
+						n_star[idx(i_1[i]-1,0,4)]=1;
+						n_star[idx(i_1[i]-1,1,4)]=g_aux;
+						n_star[idx(i_1[i]-1,2,4)]=h_aux; // open=[open;[i_1(i) g_aux h_aux]];
+						n_star[idx(i_1[i]-1,3,4)]=i_star; // came_from(i_1(i))=current(1);
+					} // endif
+				} // endfor
+			} // endwhile
+			if (open_size==0) { // if (rows(open)==0)
+				return 0; // y=[];
+			} else { // else
+				flag=i_star; // flag=current(1);
+				y_aux[i_r]=i_star; // y=current(1);
+				i_r++;
+				while (flag!=d-1) { // while (flag!=d)
+					y_aux[i_r]=n_star[idx(flag,3,4)];
+					i_r++; // y=[y;came_from(flag)];
+					flag=n_star[idx(flag,3,4)]; // flag=came_from(flag);
+				} // endwhile
+				// y=y';
+				return i_r;
+			} // endif
 		} // endif
 	} // endif
+	free(n_star);
 } // endfunction
-
-/*
-# NOTA: usa arista.m
-*/
 
 unsigned int salientes(int * i_1, int o, int * A){
 	int i_aux[30],size=0,k=0;
 	for (int i=0;i<A_x;i++){
-		if (A[idx(i,1,A_y)]==o){
+		if (A[idx(i,1,A_y)]==o &&
+			A[idx(i,2,A_y)]==1 ){
 			i_aux[size]=A[idx(i,0,A_y)];
 			size++;
 		}
@@ -456,7 +477,8 @@ unsigned int salientes(int * i_1, int o, int * A){
 unsigned int entrantes(int * i_1, int d, int * A){
 	int i_aux[30],size=0,k=0;
 	for (int i=0;i<A_x;i++){
-		if (A[idx(i,1,A_y)]==d){
+		if (A[idx(i,1,A_y)]==d &&
+			A[idx(i,2,A_y)]==-1 ){
 			i_aux[size]=A[idx(i,0,A_y)];
 			size++;
 		}
@@ -471,4 +493,40 @@ unsigned int entrantes(int * i_1, int d, int * A){
 		}
 	}
 	return size;
+}
+
+unsigned int indice_min(int * n_star){
+	unsigned int i_min;
+	float min=0;
+	for (int i=0;i<n_x;i++){
+		if (n_star[idx(i,0,4)]==1) {
+			if (n_star[idx(i,1,4)]+n_star[idx(i,2,4)]<min) {
+				min=n_star[idx(i,1,4)]+n_star[idx(i,2,4)];
+				i_min=i;
+			}
+		}
+	}
+	return i_min;
+}
+
+unsigned int arista(unsigned int i_star, unsigned int i_1, int * A){
+	unsigned int a_1[10],a_2[10],i_a_1=0,i_a_2=0;
+	for (int i=0;i<A_x;i++){
+		if (A[idx(i,1,A_y)]==i_star+1) {
+			a_1[i_a_1]=A[idx(i,0,A_y)];
+			i_a_1++;
+		}
+		if (A[idx(i,1,A_y)]==i_1+1) {
+			a_2[i_a_2]=A[idx(i,0,A_y)];
+			i_a_2++;
+		}
+	}
+	for (int i=0;i<i_a_1;i++){
+		for (int j=0;j<i_a_2;j++) {
+			if (a_1[i]==a_2[j]) {
+				return a_1[i];
+			}
+		}
+	}
+	return 0;
 }
