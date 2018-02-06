@@ -14,7 +14,7 @@ unsigned int rutas(int * delta_aux, int i, int j,
 unsigned int a_star(unsigned int * y_aux, int i, int j, int * A, float * nodos, float * c_a);
 unsigned int salientes(int * i_1, int o, int * A);
 unsigned int entrantes(int * i_1, int d, int * A);
-unsigned int indice_min(int * n_star);
+unsigned int indice_min(float * n_star);
 unsigned int arista(unsigned int i_star, unsigned int i_1, int * A);
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
@@ -308,7 +308,12 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 	unsigned int i_1[30],i_1_size,open_size=0,i_star,flag,ruta_reves[100],i_r=0;
 	float * n_star = malloc(n_size); // [conjunto costo_acum costo_falt came_from]
 	float h_aux,current[4],g_aux;
-	memset(n_star, -1, n_size); // closed=[]; // came_from=zeros(rows(nodos),1);
+	for (int i=0;i<n_x;i++) {
+		n_star[idx(i,0,4)]=-1;
+		n_star[idx(i,1,4)]=-1;
+		n_star[idx(i,2,4)]=-1;
+		n_star[idx(i,3,4)]=-1;
+	} // closed=[]; // came_from=zeros(rows(nodos),1);
 	if (o>0) { // if(o>0) % si el grafo debe recorrerse 'mano'
 		// % si origen y destino %*están*) a menos de 300 m
 		if ( fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
@@ -327,7 +332,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 			while (open_size!=0) { // while (rows(open)!=0)
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
 				// % guardo el nodo mas barato en current
-				memcpy(current,n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
 					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
 					// % si estoy a menos de 300 m del destino, termino
@@ -403,7 +408,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 			open_size++; // open=[d 0 h_aux];
 			while (open_size!=0) { // while (rows(open)!=0)
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
-				memcpy(current,n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(o-1,0,n_y)])*94870 +
 					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(o-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
 					break; // break;
@@ -417,7 +422,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 					if (n_star[idx(i_1[i]-1,0,4)] == 2) { // if (length(find(closed(:,1)==i_1(i))))
 						continue; // continue;
 					} // endif
-					g_aux=current[1]+c_a[arista(i_1[i],i_star,A)-1]; // g_aux=current(2)+c_a(find(arista(i_1(i),current(1),A)));
+					g_aux=current[1]+c_a[arista(i_star,i_1[i],A)-1]; // g_aux=current(2)+c_a(find(arista(i_1(i),current(1),A)));
 					h_aux=fabs(nodos[idx(i_1[i]-1,0,n_y)]-nodos[idx(o-1,0,n_y)]) +
 						  fabs(nodos[idx(i_1[i]-1,1,n_y)]-nodos[idx(o-1,1,n_y)]); // h_aux=sum(abs(nodos(i_1(i),:)-nodos(o,:)));
 					if (n_star[idx(i_1[i]-1,0,4)] == 1) { // if (length(find(open(:,1)==i_1(i)))) 
@@ -495,12 +500,12 @@ unsigned int entrantes(int * i_1, int d, int * A){
 	return size;
 }
 
-unsigned int indice_min(int * n_star){
+unsigned int indice_min(float * n_star){
 	unsigned int i_min;
-	float min=0;
+	float min=100000000;
 	for (int i=0;i<n_x;i++){
 		if (n_star[idx(i,0,4)]==1) {
-			if (n_star[idx(i,1,4)]+n_star[idx(i,2,4)]<min) {
+			if (min>n_star[idx(i,1,4)]+n_star[idx(i,2,4)]) {
 				min=n_star[idx(i,1,4)]+n_star[idx(i,2,4)];
 				i_min=i;
 			}
@@ -510,13 +515,13 @@ unsigned int indice_min(int * n_star){
 }
 
 unsigned int arista(unsigned int i_star, unsigned int i_1, int * A){
-	unsigned int a_1[10],a_2[10],i_a_1=0,i_a_2=0;
+	unsigned int a_1[100],a_2[100],i_a_1=0,i_a_2=0;
 	for (int i=0;i<A_x;i++){
 		if (A[idx(i,1,A_y)]==i_star+1) {
 			a_1[i_a_1]=A[idx(i,0,A_y)];
 			i_a_1++;
 		}
-		if (A[idx(i,1,A_y)]==i_1+1) {
+		if (A[idx(i,1,A_y)]==i_1) {
 			a_2[i_a_2]=A[idx(i,0,A_y)];
 			i_a_2++;
 		}
