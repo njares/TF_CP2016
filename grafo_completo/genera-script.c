@@ -16,6 +16,7 @@ unsigned int salientes(int * i_1, int o, int * A);
 unsigned int entrantes(int * i_1, int d, int * A);
 unsigned int indice_min(float * n_star);
 unsigned int arista(unsigned int i_star, unsigned int i_1, int * A);
+unsigned int dist_n(int s, int j, float p, float * nodos);
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
 
@@ -163,128 +164,208 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 unsigned int rutas(int * delta_aux, int i,int j,
 	int * A, float * nodos, float p, float t_max,unsigned int r_max, float * c_a)
 {
-	unsigned int largo_y_aux;
-	unsigned int y_aux[100];
+	unsigned int largo_y_aux,n_max,y_aux[100],i_n=0,i_1[30],i_1_size,i_s=0,current,i_aux;
+	float t;
 	largo_y_aux=a_star(y_aux,i,j,A,nodos,c_a); // y_aux=a_star(i,j,A); % busca el camino mas corto con A*
 	if (largo_y_aux==0){ // if (length(y_aux)==0)
 		return 0; // y=[];
 	} else { // else
-		return 1;
+		// % calcula la distancia maxima de camino
+		n_max=(int)(((float)largo_y_aux)*1.25)+1; // n_max=floor(length(y_aux)*1.25)+1; 
+		// y_aux(n_max)=0;
+		size_t size_n=n_max*r_max*sizeof(unsigned int);
+		size_t size_s=n_max*n_max*30*sizeof(unsigned int);
+		int * n=malloc(size_n); // n=[];
+		int * s=malloc(size_s); // s=[];
+		memset(n,-1,size_n);
+		memset(s,-1,size_s);
+		memcpy(n,y_aux,largo_y_aux*sizeof(unsigned int)); // n=[n;y_aux];
+		i_n++;
+		if (i>0){ // if(i>0)
+			// % defino la pila para dfs como si el primer camino encontrado
+			// % hubiera sido el encontrado con a_star
+			// k_y=length(find(y_aux));
+			for (int k=0;k<largo_y_aux-1;k++) { // for k=1:k_y-1
+				// % encuentro salientes para nodos salvo el %*último*)
+				i_1_size=salientes(i_1,y_aux[k],A); // i_1=salientes(y_aux(k_y-k),A);
+				for (int l=0;l<i_1_size;l++) {
+					// [c i1 i2]=intersect(i_1,y_aux(k_y-k+1));
+					// % saco el que ya %*había*) sido 'encontrado'
+					if (i_1[l]!=y_aux[k+1]) { // i_1=i_1(setdiff(1:rows(i_1),i2)); 
+						// % calculo los caminos para agregar a la pila
+						for (int m=0;m<k+1;m++) { 
+							s[idx(i_s,m,n_max)]=y_aux[m]; // v=y_aux(1:(k_y-k));
+							// v(rows(v),length(y_aux))=0;
+							// v=repmat(v,length(i_1),1);
+						}
+						s[idx(i_s,k+1,n_max)]=i_1[l]; // // v(:,k_y-k+1)=i_1; 
+						// % agrego los nuevos caminos a la pila
+						i_s++; // s=[v;s]; 
+					}
+				}
+			} // endfor
+/*
+			k=0;
+			l=0;
+			i_max=0;
+			i_min=n_max+1;
+			tic
+*/
+			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
+				// % pongo el ultimo elemento de la pila en v
+				current=i_s; // v=s(rows(s),:);	
+				// % saco el ultimo elemento de la pila
+				i_s--; // s=s([1:rows(s)-1],:);
+				// % guardo la posicion del %*último*) elemento de v
+				i_aux=-1;
+				for (k=0;k<n_max;k++) {
+					if (s[idx(current,k,n_max)]==-1) {
+						i_aux=k-1; // i_aux=max(find(v));
+						k=n_max;
+					}
+				}
+				if (i_aux==-1) {
+					i_aux=n_max-1;
+				}
+				if (fabs(nodos[idx(s[idx(current,i_aux,n_max)],0,n_y)]-nodos[idx(j-1,0,n_y)])*94870 +
+					fabs(nodos[idx(s[idx(current,i_aux,n_max)],1,n_y)]-nodos[idx(j-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(v(i_aux),:)-nodos(j,:)).*[94870 111180])<300) 
+					// % si estoy a menos de 300 m del destino, agrego el camino a n
+					memcpy(&n[idx(i_n,0,n_max)],&s[idx(current,0,n_max)],n_max*sizeof(int)); // n=[n;v];
+/*
+					k=k+1;
+					i_max=max(i_max,i_aux);
+					i_min=min(i_min,i_aux);
+*/
+				} else if (i_aux==n_max-1) { // elseif (i_aux==n_max)
+					// % si no llegue, y alcance la cantidad %*máxima*) de nodos, sigo 
+					// % con el proximo
+/*
+					k=k+1;
+*/					
+					continue; // continue;
+				} else if (n_max-i_aux<dist_n(s[idx(current,i_aux,n_max)],j,p,nodos)) { // elseif (n_max-i_aux<dist_n(v(i_aux),j,p,nodos))
+					// % si no llegue, y me %*alejé*) demasiado, descarto este camino
+/*
+					l=l+2**(n_max-i_aux);
+*/
+					continue; // continue;
+				} else { // else
+					// % si no llegue, y no alcance la cantidad %*máxima*) de nodos, 
+					// % agrego nuevos nodos
+					// % averiguo los adyacentes al %*último*) elemento de v
+					i_1_size=salientes(i_1,s[idx(current,i_aux,n_max)],A); // i_1=salientes(v(i_aux),A);
+					// % chequeo si se repite con alguno de los ya visitados
+					int flag;
+					for (int k=0;k<i_1_size;k++) {
+						// [c i1 i2]=intersect(v,i_1);
+						// % saco los repetidos
+						flag=0;
+						for (int l=0;l<i_aux && !flag;l++) {
+							if (i_1[k]==s[idx(current,l,n_max)]) { // i_1=i_1(setdiff(1:rows(i_1),i2)); 
+								flag=1;
+							}
+						}
+						if (flag) {
+							continue;
+						} else {
+							// % calculo los nuevos caminos para agregar a la pila
+							for (int l=0;l<i_aux+1;l++) {
+								s[idx(i_s,l,n_max)]=s[idx(current,l,n_max)];
+								// v=repmat(v,length(i_1),1);
+							}
+							s[idx(i_s,i_aux+1,n_max)]=i_1[k]; // // v(:,i_aux+1)=i_1;
+							// % agrego los nuevos caminos a la pila
+							i_s++; // s=[s;v];
+						}
+					}
+				} // endif
+			} // endwhile
+		}else{ // else % Lo mismo, pero 'contramano'
+			i=-i; // i=-i;
+			j=-j; // j=-j;
+			// k_y=length(find(y_aux));
+			for (int k=largo_y_aux-1;k>0;k--) { // for k=2:k_y
+				i_1_size=entrantes(i_1,y_aux[k],A); // i_1=entrantes(y_aux(k),A);
+				for (int l=0;l<i_1_size;l++) {
+					// [c i1 i2]=intersect(i_1,y_aux(k-1));
+					if (i_1[l]!=y_aux[k-1]) { // i_1=i_1(setdiff(1:rows(i_1),i2));
+						for (int m=1;m<largo_y_aux-k+1;m++) {
+							s[idx(i_s,m,n_max)]=y_aux[k+m-1]; // v=y_aux(k:k_y);
+							// v(rows(v),length(y_aux)-1)=0;
+							// v=[0,v];
+							// v=repmat(v,length(i_1),1);
+						}
+						s[idx(i_s,0,n_max)]=i_1[l]; // v(:,1)=i_1;
+						i_s++; // s=[v;s];
+					}
+				}
+			} // endfor 
+/*
+			k=0;
+			l=0;
+			i_max=0;
+			i_min=n_max+1;
+			tic
+*/
+			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
+				current=i_s; // v=s(rows(s),:);
+				i_s--; // s=s([1:rows(s)-1],:);
+				i_aux=-1;
+				for (k=0;k<n_max;k++) {
+					if (s[idx(current,k,n_max)]==-1) {
+						i_aux=k-1; // i_aux=max(find(v));
+						k=n_max;
+					}
+				}
+				if (i_aux==-1) {
+					i_aux=n_max-1;
+				}
+				if (fabs(nodos[idx(s[idx(current,0,n_max)],0,n_y)]-nodos[idx(i-1,0,n_y)])*94870 +
+					fabs(nodos[idx(s[idx(current,0,n_max)],1,n_y)]-nodos[idx(i-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(v(1),:)-nodos(i,:)).*[94870 111180])<300)
+					memcpy(&n[idx(i_n,0,n_max)],&s[idx(current,0,n_max)],n_max*sizeof(int)); // n=[n;v];
+/*
+					k=k+1;
+					i_max=max(i_max,i_aux);
+					i_min=min(i_min,i_aux);
+*/
+				} else if (i_aux==n_max-1) { // elseif (i_aux==n_max)
+/*
+					k=k+1;
+*/					
+					continue; // continue;
+				} else if (n_max-i_aux<dist_n(s[idx(current,0,n_max)],i,p,nodos)) { // elseif (n_max-i_aux<dist_n(v(1),i,p,nodos))
+/*
+					l=l+2**(n_max-i_aux);
+*/
+					continue; // continue;
+				} else { // else
+					i_1_size=entrantes(i_1,s[idx(current,0,n_max)],A); // i_1=entrantes(v(1),A); 
+					int flag;
+					for (int k=0;k<i_1_size;k++) {
+						// [c i1 i2]=intersect(v,i_1);
+						flag=0;
+						for (int l=0;l<i_aux && !flag;l++) {
+							if (i_1[k]==s[idx(current,l,n_max)]) { // i_1=i_1(setdiff(1:rows(i_1),i2)); 
+								flag=1;
+							}
+						}
+						if (flag) {
+							continue;
+						} else {
+							for (int l=1;l<i_aux+2;l++){
+								s[idx(i_s,l,n_max)]=s[idx(current,l-1,n_max)];
+								// v=[0 v(1:(length(v)-1))];
+								// v=repmat(v,length(i_1),1);
+							}
+							s[i_s,0;n_max]=i_1[k]; // v(:,1)=i_1;
+							i_s++; // s=[s;v];
+						}
+					}
+				} // endif
+			} // endwhile			
+		} // endif
 
 /*
-		n=[];
-% calcula la distancia maxima de camino
-		n_max=floor(length(y_aux)*1.25)+1; 
-		y_aux(n_max)=0;
-		n=[n;y_aux];
-		s=[];
-		if(i>0)
-% defino la pila para dfs como si el primer camino encontrado
-% hubiera sido el encontrado con a_star
-			k_y=length(find(y_aux));
-			for k=1:k_y-1
-% encuentro salientes para nodos salvo el %*último*)
-				i_1=salientes(y_aux(k_y-k),A); 
-				[c i1 i2]=intersect(i_1,y_aux(k_y-k+1));
-% saco el que ya %*había*) sido 'encontrado'
-				i_1=i_1(setdiff(1:rows(i_1),i2)); 
-				v=y_aux(1:(k_y-k));
-				v(rows(v),length(y_aux))=0;
-				v=repmat(v,length(i_1),1);
-% calculo los caminos para agregar a la pila
-				v(:,k_y-k+1)=i_1; 
-% agrego los nuevos caminos a la pila
-				s=[v;s]; 
-			endfor
-			k=0;
-			l=0;
-			i_max=0;
-			i_min=n_max+1;
-			tic
-			while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
-% pongo el ultimo elemento de la pila en v
-				v=s(rows(s),:);	
-% saco el ultimo elemento de la pila
-				s=s([1:rows(s)-1],:);	
-% guardo la posicion del %*último*) elemento de v
-				i_aux=max(find(v));		
-				if (sum(abs(nodos(v(i_aux),:)-nodos(j,:)).*[94870 111180])<300) 
-% si estoy a menos de 300 m del destino, agrego el camino a n
-					n=[n;v];
-					k=k+1;
-					i_max=max(i_max,i_aux);
-					i_min=min(i_min,i_aux);
-				elseif (i_aux==n_max)
-% si no llegue, y alcance la cantidad %*máxima*) de nodos, sigo 
-% con el proximo
-					k=k+1;
-					continue;
-				elseif (n_max-i_aux<dist_n(v(i_aux),j,p,nodos))
-% si no llegue, y me %*alejé*) demasiado, descarto este camino
-					l=l+2**(n_max-i_aux);
-					continue;
-				else
-% si no llegue, y no alcance la cantidad %*máxima*) de nodos, 
-% agrego nuevos nodos
-% averiguo los adyacentes al %*último*) elemento de v
-					i_1=salientes(v(i_aux),A);	
-% chequeo si se repite con alguno de los ya visitados
-					[c i1 i2]=intersect(v,i_1);	
-% saco los repetidos
-					i_1=i_1(setdiff(1:rows(i_1),i2)); 
-					v=repmat(v,length(i_1),1);
-% calculo los nuevos caminos para agregar a la pila
-					v(:,i_aux+1)=i_1;	
-% agrego los nuevos caminos a la pila			
-					s=[s;v];			
-				endif
-			endwhile
-		else % Lo mismo, pero 'contramano'
-			i=-i;
-			j=-j;
-			k_y=length(find(y_aux));
-			for k=2:k_y
-				i_1=entrantes(y_aux(k),A);
-				[c i1 i2]=intersect(i_1,y_aux(k-1));
-				i_1=i_1(setdiff(1:rows(i_1),i2)); 
-				v=y_aux(k:k_y);
-				v(rows(v),length(y_aux)-1)=0;
-				v=[0,v];
-				v=repmat(v,length(i_1),1);
-				v(:,1)=i_1;
-				s=[v;s];
-			endfor
-			k=0;
-			l=0;
-			i_max=0;
-			i_min=n_max+1;
-			tic
-			while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
-				v=s(rows(s),:);	
-				s=s([1:rows(s)-1],:);
-				i_aux=max(find(v));
-				if (sum(abs(nodos(v(1),:)-nodos(i,:)).*[94870 111180])<300) 
-					n=[n;v];
-					k=k+1;
-					i_max=max(i_max,i_aux);
-					i_min=min(i_min,i_aux);
-				elseif (i_aux==n_max)
-					k=k+1;
-					continue;
-				elseif (n_max-i_aux<dist_n(v(1),i,p,nodos))
-					l=l+2**(n_max-i_aux);
-					continue;
-				else
-					i_1=entrantes(v(1),A); 
-					[c i1 i2]=intersect(v,i_1);
-					i_1=i_1(setdiff(1:rows(i_1),i2));
-					v=[0 v(1:(length(v)-1))];
-					v=repmat(v,length(i_1),1);
-					v(:,1)=i_1;
-					s=[s;v];
-				endif
-			endwhile
-		endif
 		y=[];
 % reconstruyo los caminos para devolverlos
 		for k=1:rows(n)
@@ -296,12 +377,11 @@ unsigned int rutas(int * delta_aux, int i,int j,
 		endfor
 */
 
+		return 1;
 	} // endif
+	free(n);
+	free(s);
 } // endfunction
-
-/*
-# NOTA: usa dist_n.m
-*/
 
 unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
 	size_t n_size = n_x * 4 * sizeof(float);
@@ -534,4 +614,11 @@ unsigned int arista(unsigned int i_star, unsigned int i_1, int * A){
 		}
 	}
 	return 0;
+}
+
+unsigned int dist_n(int s, int j, float p, float * nodos){
+	float dist;
+	dist=fabs(nodos[idx(s-1,0,n_y)]-nodos[idx(j-1,0,n_y)]) +
+		 fabs(nodos[idx(s-1,1,n_y)]-nodos[idx(j-1,1,n_y)]); // dist=sum(abs(nodos(i,:)-nodos(j,:)));
+	return (int)(dist/p) + 4; // y=floor(dist/p)+4;
 }
