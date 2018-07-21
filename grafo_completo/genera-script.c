@@ -164,7 +164,8 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 unsigned int rutas(int * delta_aux, int i,int j,
 	int * A, float * nodos, float p, float t_max,unsigned int r_max, float * c_a)
 {
-	unsigned int largo_y_aux,n_max,y_aux[100],i_n=0,i_1[30],i_1_size,i_s=0,current,i_aux;
+	unsigned int largo_y_aux,n_max,y_aux[100],i_n=0,i_1[30],i_1_size,i_s=0,current;
+	int i_aux;
 	float t;
 	largo_y_aux=a_star(y_aux,i,j,A,nodos,c_a); // y_aux=a_star(i,j,A); % busca el camino mas corto con A*
 	if (largo_y_aux==0){ // if (length(y_aux)==0)
@@ -218,7 +219,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 				i_s--; // s=s([1:rows(s)-1],:);
 				// % guardo la posicion del %*último*) elemento de v
 				i_aux=-1;
-				for (k=0;k<n_max;k++) {
+				for (int k=0;k<n_max;k++) {
 					if (s[idx(current,k,n_max)]==-1) {
 						i_aux=k-1; // i_aux=max(find(v));
 						k=n_max;
@@ -311,7 +312,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 				current=i_s; // v=s(rows(s),:);
 				i_s--; // s=s([1:rows(s)-1],:);
 				i_aux=-1;
-				for (k=0;k<n_max;k++) {
+				for (int k=0;k<n_max;k++) {
 					if (s[idx(current,k,n_max)]==-1) {
 						i_aux=k-1; // i_aux=max(find(v));
 						k=n_max;
@@ -357,7 +358,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 								// v=[0 v(1:(length(v)-1))];
 								// v=repmat(v,length(i_1),1);
 							}
-							s[i_s,0;n_max]=i_1[k]; // v(:,1)=i_1;
+							s[i_s,0,n_max]=i_1[k]; // v(:,1)=i_1;
 							i_s++; // s=[s;v];
 						}
 					}
@@ -378,9 +379,9 @@ unsigned int rutas(int * delta_aux, int i,int j,
 */
 
 		return 1;
-	} // endif
 	free(n);
 	free(s);
+	} // endif
 } // endfunction
 
 unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
