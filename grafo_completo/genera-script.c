@@ -128,7 +128,7 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 		end=clock();
 		t+= (float) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
 		// printf("Transcurrieron %d segundos. Tiempo restante estimado: %d segundos\n",t,t*(rows(g_OD)-i)/i)
-		printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i)/(i+1));
+		printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i-1)/(i+1));
 	} // endfor
 	current=delta_head;
 	FILE * delta_file;
@@ -163,6 +163,7 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 unsigned int rutas(int * delta_aux, int i,int j,
 	int * A, float * nodos, float p, float t_max,unsigned int r_max, float * c_a)
 {
+// i, j son índices nodos grafo	
 	unsigned int largo_y_aux,n_max,y_aux[100],i_n=0,i_1[30],i_1_size,i_s=0;
 	int i_aux;
 	float t=0,start,end;
@@ -381,11 +382,10 @@ unsigned int rutas(int * delta_aux, int i,int j,
 		int i_delta=0; // y=[];
 		for(int k=0;k<i_n;k++){ // for k=1:rows(n)
 			// y_aux=sparse([],[],[],1,max(A(:,1))); 
-			for (int l=0;l<n_max;l++){ // for l=1:max(find(n(k,:)))-1
-				// y_aux=y_aux+arista(n(k,l),n(k,l+1),A);
-				if (n[idx(k,l,n_max)]!=-1){
+			for (int l=0;l<n_max-1;l++){ // for l=1:max(find(n(k,:)))-1
+				if (n[idx(k,l+1,n_max)]!=-1){
 					delta_aux[idx(i_delta,0,2)]=k+1;
-					delta_aux[idx(i_delta,1,2)]=n[idx(k,l,n_max)]+1;
+					delta_aux[idx(i_delta,1,2)]=arista(n[idx(k,l,n_max)],n[idx(k,l+1,n_max)]+1,A);
 					i_delta++;
 				}
 			} // endfor
@@ -398,6 +398,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 } // endfunction
 
 unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
+// o, d son índices nodos grafo	
 	size_t n_size = n_x * 4 * sizeof(float);
 	unsigned int i_1[30],i_1_size,open_size=0,i_star,flag,ruta_reves[100],i_r=0;
 	float * n_star = malloc(n_size); // [conjunto costo_acum costo_falt came_from], conjunto=1 : abierto, conjunto=2 : cerrado
@@ -413,8 +414,9 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 		if ( fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
 			 fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
 			i_1_size=salientes(i_1,o,A); // i_1=(salientes(o,A))(1);
-			y_aux[0]=o;
-			y_aux[1]=i_1[0]; // y=[o i_1];
+			// i_1 guarda indices grafo
+			y_aux[0]=o-1;
+			y_aux[1]=i_1[0]-1; // y=[o i_1];
 			return 2;
 		} else { // else
 			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
@@ -425,6 +427,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 			open_size++; // open=[o 0 h_aux];
 			while (open_size!=0) { // while (rows(open)!=0)
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
+				//i_star es indice C
 				// % guardo el nodo mas barato en current
 				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
@@ -440,6 +443,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 				open_size--; // open=open(i_aux,:);
 				// % busco los vecinos de current
 				i_1_size=salientes(i_1,i_star+1,A); // i_1=salientes(current(1),A);
+				// i_1 guarda indices grafo
 				for (int i=0;i<i_1_size;i++) { // for i=1:rows(i_1)
 					// % si ya esta en closed, sigo
 					if (n_star[idx(i_1[i]-1,0,4)] == 2) { // if (length(find(closed(:,1)==i_1(i))))
@@ -490,8 +494,8 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 		if ( fabs(nodos[idx(o-1,0,2)]-nodos[idx(d-1,0,2)])*94870 +
 			 fabs(nodos[idx(o-1,1,2)]-nodos[idx(d-1,1,2)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
 			i_1_size=entrantes(i_1,d,A); // i_1=(entrantes(d,A))(1);
-			y_aux[0]=i_1[0];
-			y_aux[1]=d; // y=[i_1 d];
+			y_aux[0]=i_1[0]-1;
+			y_aux[1]=d-1; // y=[i_1 d];
 			return 2;
 		} else { // else
 			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
@@ -553,6 +557,8 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 } // endfunction
 
 unsigned int salientes(int * i_1, int o, int * A){
+// o es indice grafo
+// i_1 guarda indices grafo
 	int i_aux[30],size=0,k=0;
 	for (int i=0;i<A_x;i++){
 		if (A[idx(i,1,A_y)]==o &&
@@ -574,6 +580,8 @@ unsigned int salientes(int * i_1, int o, int * A){
 }
 
 unsigned int entrantes(int * i_1, int d, int * A){
+// d es indice grafo
+// i_1 guarda indices grafo
 	int i_aux[30],size=0,k=0;
 	for (int i=0;i<A_x;i++){
 		if (A[idx(i,1,A_y)]==d &&
@@ -595,6 +603,7 @@ unsigned int entrantes(int * i_1, int d, int * A){
 }
 
 unsigned int indice_min(float * n_star){
+// i_min es indice C
 	unsigned int i_min;
 	float min=100000000;
 	for (int i=0;i<n_x;i++){
@@ -627,6 +636,7 @@ unsigned int arista(unsigned int i_star, unsigned int i_1, int * A){
 			}
 		}
 	}
+	printf("falló arista entre nodos %d y %d",i_star+1,i_1); 
 	return 0;
 }
 
