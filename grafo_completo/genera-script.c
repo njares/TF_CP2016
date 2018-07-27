@@ -7,21 +7,21 @@
 
 unsigned int idx(unsigned int i, unsigned int j, unsigned int stride);
 void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size);
-void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_size);
-void genera_D_G(char * ruta, int * A, float * c_a, float p,float t_max,unsigned int r_max);
+void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size);
+void genera_D_G(char * ruta, int * A, double * c_a, double p,double t_max,unsigned int r_max);
 unsigned int rutas(int * delta_aux, int i, int j,
-	int * A, float * nodos, float p, float t_max, unsigned int r_max, float * c_a);
-unsigned int a_star(unsigned int * y_aux, int i, int j, int * A, float * nodos, float * c_a);
+	int * A, double * nodos, double p, double t_max, unsigned int r_max, double * c_a);
+unsigned int a_star(unsigned int * y_aux, int i, int j, int * A, double * nodos, double * c_a);
 unsigned int salientes(int * i_1, int o, int * A);
 unsigned int entrantes(int * i_1, int d, int * A);
-unsigned int indice_min(float * n_star);
+unsigned int indice_min(double * n_star);
 unsigned int arista(unsigned int i_star, unsigned int i_1, int * A);
-unsigned int dist_n(int s, int j, float p, float * nodos);
+unsigned int dist_n(int s, int j, double p, double * nodos);
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
 
 unsigned int r_max=5;
-float t_max=0.3;
+double t_max=0.3;
 
 typedef struct delta_t {
     int * val;
@@ -30,16 +30,16 @@ typedef struct delta_t {
 
 int main(){
 	size_t A_size = A_x * A_y * sizeof(int);
-	size_t c_a_size = c_a_x * c_a_y * sizeof(float);
+	size_t c_a_size = c_a_x * c_a_y * sizeof(double);
     int * A = malloc(A_size);
-    float * c_a = malloc(c_a_size);
+    double * c_a = malloc(c_a_size);
     // A=load(’data/input/matriz_A_2’);
 	cargar_int(A,"data/input/matriz_A_2",A_x,A_y);
 	// c_a=load(’data/input/costo_aristas’);	
-	cargar_float(c_a,"data/input/costo_aristas",c_a_x,c_a_y);
+	cargar_double(c_a,"data/input/costo_aristas",c_a_x,c_a_y);
 	// c_a=c_a(find(c_a));
 	// p=mean(c_a);
-	float p=0;
+	double p=0;
 	int n=0;
 	for (int i=0;i<c_a_x;i++){
 		for (int j=0;j<c_a_y;j++){
@@ -72,31 +72,31 @@ void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size){
 	fclose(archivo);
 }
 
-void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_size){
+void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size){
 	FILE * archivo;
 	archivo = fopen (ruta, "r");
 	for (int i=0;i<X_size;i++){
 		for (int j=0;j<Y_size;j++){
-			fscanf(archivo,"%f",&A[idx(i,j,Y_size)]);
+			fscanf(archivo,"%lf",&A[idx(i,j,Y_size)]);
 		}
 	}
 	fclose(archivo);
 }
 
-void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigned int r_max){
+void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsigned int r_max){
 	unsigned int g_x=2990,g_y=2,cant_rutas,i_ign=0;
 	size_t g_size = g_x * g_y * sizeof(int);
 	size_t delta_size = c_a_x * r_max * 2 * sizeof(int);
-	size_t nodos_size = n_x * n_y * sizeof(float);
+	size_t nodos_size = n_x * n_y * sizeof(double);
 	int * g_OD = malloc(g_size);
 	struct delta_t * Delta = malloc(g_x*sizeof(delta_t));
 	int * ignorados = malloc(g_size);
 	memset(ignorados, -1, g_size); // ignorados=[];
 	clock_t end,start;
-	float t=0; // t=0;
+	double t=0; // t=0;
 	cargar_int(g_OD,ruta,g_x,g_y); // g_OD=load(input1);
-	float * nodos = malloc(nodos_size);
-	cargar_float(nodos,"data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
+	double * nodos = malloc(nodos_size);
+	cargar_double(nodos,"data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
 	for (int i=0;i<g_x;i++){ // for i=1:rows(g_OD)
 		start=clock(); // tic
 		// printf("Procesando par %d de %d...\n",i,rows(g_OD))
@@ -115,7 +115,7 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 			printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i+1);
 		}
 		end=clock();
-		t+= (float) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
+		t+= (double) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
 		// printf("Transcurrieron %d segundos. Tiempo restante estimado: %d segundos\n",t,t*(rows(g_OD)-i)/i)
 		printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i-1)/(i+1));
 	} // endfor
@@ -130,6 +130,7 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 		for (int j=0;j<Delta[i].largo;j++){
 			fprintf(delta_file,"%d %d\n",Delta[i].val[idx(j,0,2)]+fila_so_far,Delta[i].val[idx(j,1,2)]); // dlmwrite("data/output/Delta",[i j x],'	')
 		}
+		fprintf(gamma_file,"%d\n",Delta[i].largo);
 	}
 	for (int i=0;i<i_ign;i++){
 		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
@@ -143,18 +144,18 @@ void genera_D_G(char * ruta, int * A, float * c_a, float p, float t_max, unsigne
 } // endfunction
 
 unsigned int rutas(int * delta_aux, int i,int j,
-	int * A, float * nodos, float p, float t_max,unsigned int r_max, float * c_a)
+	int * A, double * nodos, double p, double t_max,unsigned int r_max, double * c_a)
 {
 // i, j son índices nodos grafo	
 	unsigned int largo_y_aux,n_max,y_aux[100],i_n=0,i_1[30],i_1_size,i_s=0;
 	int i_aux;
-	float t=0,start,end;
+	double t=0,start,end;
 	largo_y_aux=a_star(y_aux,i,j,A,nodos,c_a); // y_aux=a_star(i,j,A); % busca el camino mas corto con A*
 	if (largo_y_aux==0){ // if (length(y_aux)==0)
 		return 0; // y=[];
 	} else { // else
 		// % calcula la distancia maxima de camino
-		n_max=(int)(((float)largo_y_aux)*1.25)+1; // n_max=floor(length(y_aux)*1.25)+1; 
+		n_max=(int)(((double)largo_y_aux)*1.25)+1; // n_max=floor(length(y_aux)*1.25)+1; 
 		// y_aux(n_max)=0;
 		size_t size_n=n_max*r_max*sizeof(unsigned int);
 		size_t size_s=n_max*n_max*30*sizeof(unsigned int);
@@ -196,7 +197,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 */
 			start=clock(); // tic
 			end=clock();
-			t= (float) (end-start)/CLOCKS_PER_SEC;
+			t= (double) (end-start)/CLOCKS_PER_SEC;
 			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
 				// % pongo el ultimo elemento de la pila en v
 				memcpy(&current[0],&s[idx(i_s-1,0,n_max)],n_max*sizeof(int));// v=s(rows(s),:);	
@@ -268,7 +269,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 					}
 				} // endif
 			end=clock();
-			t= (float) (end-start)/CLOCKS_PER_SEC;
+			t= (double) (end-start)/CLOCKS_PER_SEC;
 			} // endwhile
 		}else{ // else % Lo mismo, pero 'contramano'
 			i=-i; // i=-i;
@@ -298,7 +299,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 */
 			start=clock(); // tic
 			end=clock();
-			t= (float) (end-start)/CLOCKS_PER_SEC;
+			t= (double) (end-start)/CLOCKS_PER_SEC;
 			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
 				memcpy(&current[0],&s[idx(i_s-1,0,n_max)],n_max*sizeof(int));// v=s(rows(s),:);	
 				memset(&s[idx(i_s-1,0,n_max)],-1,n_max*sizeof(int));
@@ -357,7 +358,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 					}
 				} // endif
 			end=clock();
-			t= (float) (end-start)/CLOCKS_PER_SEC;
+			t= (double) (end-start)/CLOCKS_PER_SEC;
 			} // endwhile			
 		} // endif
 		// % reconstruyo los caminos para devolverlos
@@ -379,12 +380,12 @@ unsigned int rutas(int * delta_aux, int i,int j,
 	} // endif
 } // endfunction
 
-unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, float * c_a){
+unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos, double * c_a){
 // o, d son índices nodos grafo	
-	size_t n_size = n_x * 4 * sizeof(float);
+	size_t n_size = n_x * 4 * sizeof(double);
 	unsigned int i_1[30],i_1_size,open_size=0,i_star,flag,ruta_reves[100],i_r=0;
-	float * n_star = malloc(n_size); // [conjunto costo_acum costo_falt came_from], conjunto=1 : abierto, conjunto=2 : cerrado
-	float h_aux,current[4],g_aux;
+	double * n_star = malloc(n_size); // [conjunto costo_acum costo_falt came_from], conjunto=1 : abierto, conjunto=2 : cerrado
+	double h_aux,current[4],g_aux;
 	for (int i=0;i<n_x;i++) {
 		n_star[idx(i,0,4)]=-1;
 		n_star[idx(i,1,4)]=-1;
@@ -411,7 +412,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
 				//i_star es indice C
 				// % guardo el nodo mas barato en current
-				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(double)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
 					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
 					// % si estoy a menos de 300 m del destino, termino
@@ -488,7 +489,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, float * nodos, 
 			open_size++; // open=[d 0 h_aux];
 			while (open_size!=0) { // while (rows(open)!=0)
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
-				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(float)); // current=open(i,:);
+				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(double)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(o-1,0,n_y)])*94870 +
 					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(o-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
 					break; // break;
@@ -584,10 +585,10 @@ unsigned int entrantes(int * i_1, int d, int * A){
 	return size;
 }
 
-unsigned int indice_min(float * n_star){
+unsigned int indice_min(double * n_star){
 // i_min es indice C
 	unsigned int i_min;
-	float min=100000000;
+	double min=100000000;
 	for (int i=0;i<n_x;i++){
 		if (n_star[idx(i,0,4)]==1) {
 			if (min>n_star[idx(i,1,4)]+n_star[idx(i,2,4)]) {
@@ -622,8 +623,8 @@ unsigned int arista(unsigned int i_star, unsigned int i_1, int * A){
 	return 0;
 }
 
-unsigned int dist_n(int s, int j, float p, float * nodos){
-	float dist;
+unsigned int dist_n(int s, int j, double p, double * nodos){
+	double dist;
 	dist=fabs(nodos[idx(s-1,0,n_y)]-nodos[idx(j-1,0,n_y)]) +
 		 fabs(nodos[idx(s-1,1,n_y)]-nodos[idx(j-1,1,n_y)]); // dist=sum(abs(nodos(i,:)-nodos(j,:)));
 	return (int)(dist/p) + 4; // y=floor(dist/p)+4;
