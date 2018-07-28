@@ -130,7 +130,8 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		for (int j=0;j<Delta[i].largo;j++){
 			fprintf(delta_file,"%d %d\n",Delta[i].val[idx(j,0,2)]+fila_so_far,Delta[i].val[idx(j,1,2)]); // dlmwrite("data/output/Delta",[i j x],'	')
 		}
-		fprintf(gamma_file,"%d\n",Delta[i].largo);
+		fprintf(gamma_file,"%d\n",Delta[i].val[idx(Delta[i].largo-1,0,2)]); // dlmwrite("data/output/Gamma",[i j x],'	')
+		fila_so_far+=Delta[i].val[idx(Delta[i].largo-1,0,2)];
 	}
 	for (int i=0;i<i_ign;i++){
 		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
