@@ -5,6 +5,8 @@
 #include <string.h>
 #include <math.h>
 
+#include <omp.h>
+
 unsigned int idx(unsigned int i, unsigned int j, unsigned int stride);
 void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size);
@@ -20,8 +22,8 @@ unsigned int dist_n(int s, int j, double p, double * nodos);
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
 
-unsigned int r_max=5;
-double t_max=0.3;
+unsigned int r_max=20;
+double t_max=20;
 
 typedef struct delta_t {
     int * val;
@@ -97,10 +99,14 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	cargar_int(g_OD,ruta,g_x,g_y); // g_OD=load(input1);
 	double * nodos = malloc(nodos_size);
 	cargar_double(nodos,"data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
+	
+	#pragma omp parallel shared(Delta,g_OD,A,nodos,p,t_max,r_max,c_a,ignorados,i_ign) //num_threads(n_hilos)
+    {	
+	#pragma omp for schedule(guided)
 	for (int i=0;i<g_x;i++){ // for i=1:rows(g_OD)
-		start=clock(); // tic
+		//start=clock(); // tic
 		// printf("Procesando par %d de %d...\n",i,rows(g_OD))
-		printf("Procesando par %d de %d...\n",i+1,g_x); 
+		//printf("Procesando par %d de %d...\n",i+1,g_x); 
 		// y=rutas(g_OD(i,1),g_OD(i,2),A,p,t_max,r_max);
 		Delta[i].val = malloc(delta_size);
 		memset(Delta[i].val, 0, delta_size);
@@ -109,16 +115,22 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		// printf("Procesado par %d de %d\n",i,rows(g_OD))
 		printf("Procesado par %d de %d\n",i+1,g_x);
 		if (Delta[i].largo==0){ // if (length(y)==0)
+			#pragma omp critical 
+			{
 			ignorados[i_ign]=i+1; // ignorados=[ignorados;i];
 			i_ign++;
 			// printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i)
 			printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i+1);
+			}
 		}
-		end=clock();
-		t+= (double) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
+		Delta[i].val=realloc(Delta[i].val,Delta[i].largo*2*sizeof(int));
+		//end=clock();
+		//t+= (double) (end-start)/CLOCKS_PER_SEC; // t=t+toc;
 		// printf("Transcurrieron %d segundos. Tiempo restante estimado: %d segundos\n",t,t*(rows(g_OD)-i)/i)
-		printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i-1)/(i+1));
+		//printf("Transcurrieron %f segundos. Tiempo restante estimado: %f segundos\n",t,t*(g_x-i-1)/(i+1));
 	} // endfor
+	
+    }
 	FILE * delta_file;
 	FILE * gamma_file;
 	FILE * ignorados_file;
@@ -126,19 +138,25 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	gamma_file=fopen("data/output/Gamma","w+");
 	ignorados_file=fopen("data/output/ignorados","w+");
 	int fila_so_far=0;
+	int D_x=0;
 	for (int i=0;i<g_x;i++){
 		for (int j=0;j<Delta[i].largo;j++){
 			fprintf(delta_file,"%d %d\n",Delta[i].val[idx(j,0,2)]+fila_so_far,Delta[i].val[idx(j,1,2)]); // dlmwrite("data/output/Delta",[i j x],'	')
 		}
 		fprintf(gamma_file,"%d\n",Delta[i].val[idx(Delta[i].largo-1,0,2)]); // dlmwrite("data/output/Gamma",[i j x],'	')
 		fila_so_far+=Delta[i].val[idx(Delta[i].largo-1,0,2)];
+		D_x+=Delta[i].largo;
 	}
+	printf("D_x=%d\n",D_x);
 	for (int i=0;i<i_ign;i++){
 		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
 	}
 	for (int i=0;i<g_x;i++){
 		free(Delta[i].val);
 	}
+	fclose(delta_file);
+	fclose(gamma_file);
+	fclose(ignorados_file);
 	free(g_OD);
 	free(ignorados);
 	free(Delta);
@@ -401,6 +419,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 			// i_1 guarda indices grafo
 			y_aux[0]=o-1;
 			y_aux[1]=i_1[0]-1; // y=[o i_1];
+			free(n_star);
 			return 2;
 		} else { // else
 			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
@@ -454,6 +473,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 				} // endfor
 			} // endwhile
 			if (open_size==0) { // if (rows(open)==0)
+				free(n_star);
 				return 0; // y=[];
 			} else { // else
 				// % reconstruyo el camino
@@ -469,6 +489,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 				for (int i=0;i<i_r;i++) {
 					y_aux[i]=ruta_reves[i_r-i-1];
 				}
+				free(n_star);
 				return i_r;
 			} // endif
 		} // endif
@@ -480,6 +501,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 			i_1_size=entrantes(i_1,d,A); // i_1=(entrantes(d,A))(1);
 			y_aux[0]=i_1[0]-1;
 			y_aux[1]=d-1; // y=[i_1 d];
+			free(n_star);
 			return 2;
 		} else { // else
 			h_aux=fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)]) +
@@ -522,6 +544,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 				} // endfor
 			} // endwhile
 			if (open_size==0) { // if (rows(open)==0)
+				free(n_star);
 				return 0; // y=[];
 			} else { // else
 				flag=i_star; // flag=current(1);
@@ -533,11 +556,11 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 					flag=n_star[idx(flag,3,4)]; // flag=came_from(flag);
 				} // endwhile
 				// y=y';
+				free(n_star);
 				return i_r;
 			} // endif
 		} // endif
 	} // endif
-	free(n_star);
 } // endfunction
 
 unsigned int salientes(int * i_1, int o, int * A){
