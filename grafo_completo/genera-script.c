@@ -116,14 +116,14 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		Delta[i].largo=rutas(Delta[i].val,g_OD[idx(i,0,g_y)],g_OD[idx(i,1,g_y)],
 			A,nodos,p,t_max,r_max,c_a);
 		// printf("Procesado par %d de %d\n",i,rows(g_OD))
-		printf("Procesado par %d de %d\n",i+1,g_x);
+		//printf("Procesado par %d de %d\n",i+1,g_x);
 		if (Delta[i].largo==0){ // if (length(y)==0)
 			#pragma omp critical 
 			{
 			ignorados[i_ign]=i+1; // ignorados=[ignorados;i];
 			i_ign++;
 			// printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i)
-			printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i+1);
+			//printf("No se encontraron rutas para el par %d, agregado a la lista de pares ignorados\n",i+1);
 			}
 		}
 		Delta[i].val=realloc(Delta[i].val,Delta[i].largo*2*sizeof(int));
@@ -150,7 +150,7 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		fila_so_far+=Delta[i].val[idx(Delta[i].largo-1,0,2)];
 		D_x+=Delta[i].largo;
 	}
-	printf("D_x=%d\n",D_x);
+	printf("%d\n",D_x);
 	for (int i=0;i<i_ign;i++){
 		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
 	}

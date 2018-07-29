@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
 #include <omp.h>
 
@@ -17,11 +18,13 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 void qp_i(double * x0, double * h_aux, int m);
 void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
-unsigned int c_a_x=9006,c_a_y=1,D_x=1449836,D_y=2,G_x=2990,G_y=1;
-int maxit=500,maxit_r=100;
-double tol=1e-12,s=1000;
+unsigned int c_a_x=9006,c_a_y=1,D_x=355561,D_y=2,G_x=2990,G_y=1;
+int maxit=100,maxit_r=100;
+double tol,s=1000000;
 
-int main(){
+int main(int argc, char **argv) {
+	assert(2==argc);
+	D_x = atof(argv[1]);
 	size_t c_a_size = c_a_x * c_a_y * sizeof(double);
 	size_t D_size = D_x * D_y * sizeof(int);
 	size_t G_size = G_x * G_y * sizeof(int);
@@ -38,6 +41,7 @@ int main(){
 		G_col+=Gamma[i];
 	}
 	size_t h_size = G_col * sizeof(double);
+	tol=DBL_EPSILON*G_col*10;
 	double * h = malloc(h_size);
 	int acum=0,k=0;
 	for (int i=0;i<G_col;i++){	//for i=1:rows(Gamma)
@@ -64,6 +68,10 @@ int main(){
 		fprintf(v_file,"%lf\n",v[i]);
 	}
 	fclose(v_file);
+	free(c_a);
+	free(Delta);
+	free(Gamma);
+	free(h);
 	free(v);
 	return 0;
 }
@@ -107,17 +115,21 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 	}
 	proy(h,Gamma,G_col);
 	err=0;
-	for (int i=0; i<=G_col;i++){
+	for (int i=0; i<G_col;i++){
 		err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
 	}
 	err=sqrt(err);
 	for (int i=0;i<maxit;i++){ // for k=0:maxit
-		printf("iter_min=%d fun=%f err=%f\n",i+1,f,err); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
+		printf("iter_min=%d fun=%.14lf err=%.14lf\n",i+1,f,err); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
 		if (err<tol){ // if err<tol
+			free(df);
+			free(h);
 			return 0; // salida=0;
 		} // end
 		ki=reg_armijoPr(x,f,df,G_col,Gamma,Delta,c_a,reg_A); // [x,t,ki]=regla(fun,x,PrX,f,df,pr);
 		if (ki>=maxit_r){ // if ki>=pr(1)
+			free(df);
+			free(h);
 			return 3; // salida=3;
 		} // end
 		f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
@@ -126,11 +138,13 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 		}
 		proy(h,Gamma,G_col);
 		err=0;
-		for (int i=0; i<=G_col;i++){
+		for (int i=0; i<G_col;i++){
 			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
 		}
 		err=sqrt(err);		
 	} // end
+	free(df);
+	free(h);
 	return 1;
 }
 
@@ -193,6 +207,8 @@ double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,i
 			df[-1+Delta[idx(i,0,D_y)]]+=w[-1+Delta[idx(i,1,D_y)]]; // Df=Delta*z;
 		}
 	}
+	free(v);
+	free(w);
 	return f;
 }
 
@@ -218,7 +234,7 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 		d_aux+=df[i]*d[i];
 	}
 	while (fn>f+alpha*(1e-4)*d_aux && k<maxit_r){ // while fn>f+alpha*sig*df'*d && k<=maxit
-		printf("    iter_reg=%d fun_n=%f fun=%f\n",k+1,fn,f); //printf ("iter_reg=%d fun_n=%e fun=%e\n",k,fn,f)
+		printf("    iter_reg=%d fun_n=%.14lf fun=%.14lf\n",k+1,fn,f); //printf ("iter_reg=%d fun_n=%e fun=%e\n",k,fn,f)
 		alpha=0.5*alpha; // alpha=ra*alpha;
 		for (int i=0;i<G_col;i++){
 			xn[i]=x[i]+alpha*d[i]; // xn=x+alpha*d;
@@ -229,6 +245,9 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 	for (int i=0;i<G_col;i++){
 		x[i]=xn[i];
 	}
+	free(xs);
+	free(d);
+	free(xn);
 	return k;
 }
 
@@ -258,6 +277,7 @@ void proy(double * h, int * Gamma, int G_col){
 		}
 	} // endfor
 	}
+	free(i_aux);
 }
 
 /*
@@ -314,6 +334,7 @@ void qp_i(double * x0, double * h_aux, int m){
 			}
 			if (flag){ // if λ_i ≥ 0 for all i ∈ W_k ∩ I
 				// stop with solution x* = x_k;
+				free(W);
 				return;
 			} else { // else
 				// j <- argmin_{j in W_k ∩ I} λ_i
