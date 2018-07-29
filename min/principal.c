@@ -6,37 +6,37 @@
 #include <math.h>
 
 void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size);
-void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_size);
+void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 unsigned int idx(unsigned int i, unsigned int j, unsigned int stride);
-int min_gradPr(float * x, int * Gamma, int G_col,int * Delta,float * c_a,int * reg_A);
-void proy(float * h, int * Gamma, int G_col);
-float T(float * x,float * df,int * Delta,float * c_a,int * reg_A,int G_col,int flag);
-int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,float * c_a,int * reg_A);
-void qp_i(float * x0, float * h_aux, int m);
-void qp_e(float * p_k, float * g_k, int * W_k, int m, float * lambda);
+int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int * reg_A);
+void proy(double * h, int * Gamma, int G_col);
+double T(double * x,double * df,int * Delta,double * c_a,int * reg_A,int G_col,int flag);
+int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Delta,double * c_a,int * reg_A);
+void qp_i(double * x0, double * h_aux, int m);
+void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
 unsigned int c_a_x=9006,c_a_y=1,D_x=355746,D_y=2,G_x=2990,G_y=1;
 int maxit=200,maxit_r=100;
-float tol=1e-12,s=1000;
+double tol=1e-12,s=1000;
 
 int main(){
-	size_t c_a_size = c_a_x * c_a_y * sizeof(float);
+	size_t c_a_size = c_a_x * c_a_y * sizeof(double);
 	size_t D_size = D_x * D_y * sizeof(int);
 	size_t G_size = G_x * G_y * sizeof(int);
 	int reg_A[4],salida;
-	float * c_a = malloc(c_a_size);
+	double * c_a = malloc(c_a_size);
 	int * Delta = malloc(D_size);
 	int * Gamma = malloc(G_size);
 	cargar_int(reg_A,"data/input/reg_A",1,4); //reg_A=load(’data/input/reg_A’);
-	cargar_float(c_a,"data/input/costo_aristas",c_a_x,c_a_y); //c_a=load(’data/input/costo_aristas’);
+	cargar_double(c_a,"data/input/costo_aristas",c_a_x,c_a_y); //c_a=load(’data/input/costo_aristas’);
 	cargar_int(Delta,"data/input/Delta",D_x,D_y); //Delta=load(’data/input/Delta’);
 	cargar_int(Gamma,"data/input/Gamma",G_x,G_y); //Gamma=load(’data/input/Gamma’);
 	int G_col=0;
 	for (int i=0;i<G_x;i++){
 		G_col+=Gamma[i];
 	}
-	size_t h_size = G_col * sizeof(float);
-	float * h = malloc(h_size);
+	size_t h_size = G_col * sizeof(double);
+	double * h = malloc(h_size);
 	int acum=0,k=0;
 	for (int i=0;i<G_col;i++){	//for i=1:rows(Gamma)
 		if (i==acum){			//h0(min(find(Gamma(i,:))))=1;
@@ -63,12 +63,12 @@ void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size){
 	fclose(archivo);
 }
 
-void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_size){
+void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size){
 	FILE * archivo;
 	archivo = fopen (ruta, "r");
 	for (int i=0;i<X_size;i++){
 		for (int j=0;j<Y_size;j++){
-			fscanf(archivo,"%f",&A[idx(i,j,Y_size)]);
+			fscanf(archivo,"%lf",&A[idx(i,j,Y_size)]);
 		}
 	}
 	fclose(archivo);
@@ -78,11 +78,11 @@ unsigned int idx(unsigned int x, unsigned int y, unsigned int stride) {
     return x * stride + y;
 }
 
-int min_gradPr(float * x, int * Gamma, int G_col,int * Delta,float * c_a,int * reg_A){
-	size_t h_size = G_col * sizeof(float);
-	float f, err;
-	float * df = malloc(h_size);
-	float * h = malloc(h_size);
+int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int * reg_A){
+	size_t h_size = G_col * sizeof(double);
+	double f, err;
+	double * df = malloc(h_size);
+	double * h = malloc(h_size);
 	int ki;
 	proy(x,Gamma,G_col); // x=PrX(x);
 	f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
@@ -141,11 +141,11 @@ if nargin==6, pr(1:length(parregla))=parregla; end
 maxit=pm(1); tol=pm(2);
 */
 
-float T(float * h,float * df,int * Delta,float * c_a,int * reg_A,int G_col,int flag){
-	size_t v_size = c_a_x * sizeof(float);
-	float * v = malloc(v_size);
-	float * w = malloc(v_size);
-	float f;
+double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,int flag){
+	size_t v_size = c_a_x * sizeof(double);
+	double * v = malloc(v_size);
+	double * w = malloc(v_size);
+	double f;
 	for (int i=0;i<c_a_x;i++){
 		v[i]=0;
 	}
@@ -180,12 +180,12 @@ float T(float * h,float * df,int * Delta,float * c_a,int * reg_A,int G_col,int f
 	return f;
 }
 
-int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,float * c_a,int * reg_A){
-	size_t h_size = G_col * sizeof(float);
-	float * xs = malloc(h_size);
-	float * d = malloc(h_size);
-	float * xn = malloc(h_size);
-	float alpha=1,fn,d_aux=0;
+int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Delta,double * c_a,int * reg_A){
+	size_t h_size = G_col * sizeof(double);
+	double * xs = malloc(h_size);
+	double * d = malloc(h_size);
+	double * xn = malloc(h_size);
+	double alpha=1,fn,d_aux=0;
 	int k=0;
 	for (int i=0;i<G_col;i++){
 		xs[i]=x[i]-s*df[i];
@@ -216,8 +216,8 @@ int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,
 	return k;
 }
 
-void proy(float * h, int * Gamma, int G_col){
-	float h_aux[100],x0[100];
+void proy(double * h, int * Gamma, int G_col){
+	double h_aux[100],x0[100];
 	int j=0,m; // j=1;
 	for (int i=0;i<G_x;i++){ // for i=1:rows(Gamma)
 		m=Gamma[i]; // m=length(find(Gamma(i,:)));
@@ -225,7 +225,7 @@ void proy(float * h, int * Gamma, int G_col){
 			h_aux[k-j]=-h[k]; // h_aux=h0([j:j+m-1]);
 		}
 		for (int k=0;k<m;k++){
-			x0[k]=1.0/((float) m); // x0=(1/m)*ones(m,1);
+			x0[k]=1.0/((double) m); // x0=(1/m)*ones(m,1);
 		}
 		qp_i(x0,h_aux,m);
 		for (int k=j;k<j+m;k++){
@@ -249,10 +249,10 @@ a_i=e_i  for i in I={1,...,m}
 b_i=0    for i in I={1,...,m}
 */
 
-void qp_i(float * x0, float * h_aux, int m){
+void qp_i(double * x0, double * h_aux, int m){
 	// Compute a feasible starting point x_0
 	int * W = malloc((m+1)*sizeof(int));
-	float g_k[100],p_k[100],lambda[100],lambda_min,alpha;
+	double g_k[100],p_k[100],lambda[100],lambda_min,alpha;
 	int flag,j,block;
 	// Set W_0 to be a subset of the active constraints at x_0
 	for (int i=0;i<m;i++){
@@ -370,9 +370,9 @@ lambda_m+1 = ( sum_{i not in W_k} g_k_i ) / L
 
 */
 
-void qp_e(float * p_k, float * g_k, int * W_k, int m, float * lambda){
+void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda){
 	int L=0;
-	float g=0;
+	double g=0;
 	for (int i=0;i<m;i++){
 		if (W_k[i]==0){
 			L++;
