@@ -15,7 +15,7 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 void qp_i(double * x0, double * h_aux, int m);
 void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
-unsigned int c_a_x=9006,c_a_y=1,D_x=355746,D_y=2,G_x=2990,G_y=1;
+unsigned int c_a_x=9006,c_a_y=1,D_x=363887,D_y=2,G_x=2990,G_y=1;
 int maxit=200,maxit_r=100;
 double tol=1e-12,s=1000;
 
@@ -49,6 +49,16 @@ int main(){
 	}
 //[h,f,err,k,salida]=min_gradPr(@T,h0,@(x)qp_s(Gamma,x),[100 1e-12],@reg_armijoPr,[100 1000 1 1 0.5 1e -4]);
 	salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+	FILE * h_file;
+	h_file=fopen("data/output/h","w+");
+	for (int i=0;i<G_col;i++){
+		fprintf(h_file,"%lf\n",h[i]);
+	}
+	fclose(h_file);
+	free(c_a);
+	free(Delta);
+	free(Gamma);
+//	free(h);
 	return 0;
 }
 
@@ -82,39 +92,45 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 	size_t h_size = G_col * sizeof(double);
 	double f, err;
 	double * df = malloc(h_size);
-	double * h = malloc(h_size);
+	double * xh = malloc(h_size);
 	int ki;
 	proy(x,Gamma,G_col); // x=PrX(x);
 	f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
 	for (int i=0;i<G_col;i++){
-		h[i]=x[i]-df[i];
+		xh[i]=x[i]-df[i];
 	}
-	proy(h,Gamma,G_col);
+	proy(xh,Gamma,G_col);
 	err=0;
 	for (int i=0; i<=G_col;i++){
-		err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+		err += (x[i] - xh[i])*(x[i] - xh[i]); // err=norm(x-PrX(x-df));
 	}
 	err=sqrt(err);
 	for (int i=0;i<maxit;i++){ // for k=0:maxit
 		printf("iter_min=%d fun=%f err=%f\n",i+1,f,err); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
 		if (err<tol){ // if err<tol
+			//free(df);
+			//free(xh);
 			return 0; // salida=0;
 		} // end
 		ki=reg_armijoPr(x,f,df,G_col,Gamma,Delta,c_a,reg_A); // [x,t,ki]=regla(fun,x,PrX,f,df,pr);
 		if (ki>=maxit_r){ // if ki>=pr(1)
+			//free(df);
+			//free(xh);
 			return 3; // salida=3;
 		} // end
 		f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
 		for (int i=0;i<G_col;i++){
-			h[i]=x[i]-df[i];
+			xh[i]=x[i]-df[i];
 		}
-		proy(h,Gamma,G_col);
+		proy(xh,Gamma,G_col);
 		err=0;
 		for (int i=0; i<=G_col;i++){
-			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+			err += (x[i] - xh[i])*(x[i] - xh[i]); // err=norm(x-PrX(x-df));
 		}
 		err=sqrt(err);		
 	} // end
+	free(df);
+	free(xh);
 	return 1;
 }
 
@@ -141,7 +157,7 @@ if nargin==6, pr(1:length(parregla))=parregla; end
 maxit=pm(1); tol=pm(2);
 */
 
-double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,int flag){
+double T(double * x,double * df,int * Delta,double * c_a,int * reg_A,int G_col,int flag){
 	size_t v_size = c_a_x * sizeof(double);
 	double * v = malloc(v_size);
 	double * w = malloc(v_size);
@@ -150,7 +166,7 @@ double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,i
 		v[i]=0;
 	}
 	for (int i=0;i<D_x;i++){
-		v[Delta[idx(i,1,D_y)]]+=h[Delta[idx(i,0,D_y)]]; // v=Delta'*h;
+		v[Delta[idx(i,1,D_y)]]+=x[Delta[idx(i,0,D_y)]]; // v=Delta'*h;
 	}
 	memcpy(w,v,v_size); // w=v;
 	for (int i=0;i<reg_A[0];i++){
@@ -177,6 +193,8 @@ double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,i
 			df[Delta[idx(i,0,D_y)]]+=w[Delta[idx(i,1,D_y)]]; // Df=Delta*z;
 		}
 	}
+	free(v);
+	free(w);
 	return f;
 }
 
@@ -213,6 +231,9 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 	for (int i=0;i<G_col;i++){
 		x[i]=xn[i];
 	}
+	free(xs);
+	free(d);
+	free(xn);
 	return k;
 }
 
@@ -289,6 +310,7 @@ void qp_i(double * x0, double * h_aux, int m){
 			}
 			if (flag){ // if λ_i ≥ 0 for all i ∈ W_k ∩ I
 				// stop with solution x* = x_k;
+				free(W);
 				return;
 			} else { // else
 				// j <- argmin_{j in W_k ∩ I} λ_i
