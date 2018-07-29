@@ -51,6 +51,20 @@ int main(){
 	}
 //[h,f,err,k,salida]=min_gradPr(@T,h0,@(x)qp_s(Gamma,x),[100 1e-12],@reg_armijoPr,[100 1000 1 1 0.5 1e -4]);
 	salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+	double * v = malloc(c_a_x * sizeof(double));
+	for (int i=0;i<c_a_x;i++){
+		v[i]=0;
+	}
+	for (int i=0;i<D_x;i++){
+		v[-1+Delta[idx(i,1,D_y)]]+=h[-1+Delta[idx(i,0,D_y)]]; // v=Delta'*h;
+	}
+	FILE * v_file;
+	v_file = fopen ("data/output/v", "w+");
+	for (int i=0;i<c_a_x;i++){
+		fprintf(v_file,"%lf\n",v[i]);
+	}
+	fclose(v_file);
+	free(v);
 	return 0;
 }
 
@@ -152,7 +166,7 @@ double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,i
 		v[i]=0;
 	}
 	for (int i=0;i<D_x;i++){
-		v[Delta[idx(i,1,D_y)]]+=h[Delta[idx(i,0,D_y)]]; // v=Delta'*h;
+		v[-1+Delta[idx(i,1,D_y)]]+=h[-1+Delta[idx(i,0,D_y)]]; // v=Delta'*h;
 	}
 	memcpy(w,v,v_size); // w=v;
 	for (int i=0;i<reg_A[0];i++){
@@ -176,7 +190,7 @@ double T(double * h,double * df,int * Delta,double * c_a,int * reg_A,int G_col,i
 			df[i]=0;
 		}
 		for (int i=0;i<D_x;i++){
-			df[Delta[idx(i,0,D_y)]]+=w[Delta[idx(i,1,D_y)]]; // Df=Delta*z;
+			df[-1+Delta[idx(i,0,D_y)]]+=w[-1+Delta[idx(i,1,D_y)]]; // Df=Delta*z;
 		}
 	}
 	return f;
