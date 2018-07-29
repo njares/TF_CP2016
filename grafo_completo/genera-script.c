@@ -22,15 +22,18 @@ unsigned int dist_n(int s, int j, double p, double * nodos);
 
 unsigned int A_x=18012,A_y=3,c_a_x=9006,c_a_y=1,n_x=5237,n_y=2;
 
-unsigned int r_max=20;
-double t_max=20;
+unsigned int r_max;
+double t_max;
 
 typedef struct delta_t {
     int * val;
     unsigned int largo;
 } delta_t;
 
-int main(){
+int main(int argc, char **argv) {
+	assert(3==argc);
+	t_max = atof(argv[1]);
+	r_max = atoi(argv[2]);
 	size_t A_size = A_x * A_y * sizeof(int);
 	size_t c_a_size = c_a_x * c_a_y * sizeof(double);
     int * A = malloc(A_size);
@@ -235,7 +238,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 					i_aux=n_max-1;
 				}
 				if (fabs(nodos[idx(current[i_aux],0,n_y)]-nodos[idx(j-1,0,n_y)])*94870 +
-					fabs(nodos[idx(current[i_aux],1,n_y)]-nodos[idx(j-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(v(i_aux),:)-nodos(j,:)).*[94870 111180])<300) 
+					fabs(nodos[idx(current[i_aux],1,n_y)]-nodos[idx(j-1,1,n_y)])*111180 < 1) { // if (sum(abs(nodos(v(i_aux),:)-nodos(j,:)).*[94870 111180])<300) 
 					// % si estoy a menos de 300 m del destino, agrego el camino a n
 					memcpy(&n[idx(i_n,0,n_max)],&current[0],n_max*sizeof(int)); // n=[n;v];
 					i_n++;
@@ -334,7 +337,7 @@ unsigned int rutas(int * delta_aux, int i,int j,
 					i_aux=n_max-1;
 				}
 				if (fabs(nodos[idx(current[0],0,n_y)]-nodos[idx(i-1,0,n_y)])*94870 +
-					fabs(nodos[idx(current[0],1,n_y)]-nodos[idx(i-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(v(1),:)-nodos(i,:)).*[94870 111180])<300)
+					fabs(nodos[idx(current[0],1,n_y)]-nodos[idx(i-1,1,n_y)])*111180 < 1) { // if (sum(abs(nodos(v(1),:)-nodos(i,:)).*[94870 111180])<300)
 					memcpy(&n[idx(i_n,0,n_max)],&current[0],n_max*sizeof(int)); // n=[n;v];
 					i_n++;
 /*
@@ -414,7 +417,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 	if (o>0) { // if(o>0) % si el grafo debe recorrerse 'mano'
 		// % si origen y destino %*están*) a menos de 300 m
 		if ( fabs(nodos[idx(o-1,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
-			 fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
+			 fabs(nodos[idx(o-1,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 1) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
 			i_1_size=salientes(i_1,o,A); // i_1=(salientes(o,A))(1);
 			// i_1 guarda indices grafo
 			y_aux[0]=o-1;
@@ -434,7 +437,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 				// % guardo el nodo mas barato en current
 				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(double)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(d-1,0,n_y)])*94870 +
-					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
+					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(d-1,1,n_y)])*111180 < 1) { // if (sum(abs(nodos(current(1),:)-nodos(d,:)).*[94870 111180])<300) 
 					// % si estoy a menos de 300 m del destino, termino
 					break; // break;
 				} // endif
@@ -497,7 +500,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 		o=-o; // o=-o;
 		d=-d; // d=-d;
 		if ( fabs(nodos[idx(o-1,0,2)]-nodos[idx(d-1,0,2)])*94870 +
-			 fabs(nodos[idx(o-1,1,2)]-nodos[idx(d-1,1,2)])*111180 < 300) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
+			 fabs(nodos[idx(o-1,1,2)]-nodos[idx(d-1,1,2)])*111180 < 1) { // if (sum(abs(nodos(o,:)-nodos(d,:)).*[94870 111180])<300) 
 			i_1_size=entrantes(i_1,d,A); // i_1=(entrantes(d,A))(1);
 			y_aux[0]=i_1[0]-1;
 			y_aux[1]=d-1; // y=[i_1 d];
@@ -514,7 +517,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 				i_star=indice_min(n_star); // [x i]=min(open(:,2)+open(:,3));
 				memcpy(current,&n_star[idx(i_star,0,4)],4*sizeof(double)); // current=open(i,:);
 				if ( fabs(nodos[idx(i_star,0,n_y)]-nodos[idx(o-1,0,n_y)])*94870 +
-					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(o-1,1,n_y)])*111180 < 300) { // if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
+					 fabs(nodos[idx(i_star,1,n_y)]-nodos[idx(o-1,1,n_y)])*111180 < 1) { // if (sum(abs(nodos(current(1),:)-nodos(o,:)).*[94870 111180])<300) 
 					break; // break;
 				} // endif
 				// closed=[closed;open(i,:)];
