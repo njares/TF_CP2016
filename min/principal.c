@@ -9,13 +9,15 @@ void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 void cargar_float(float * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 unsigned int idx(unsigned int i, unsigned int j, unsigned int stride);
 int min_gradPr(float * x, int * Gamma, int G_col,int * Delta,float * c_a,int * reg_A);
-void qp_s(float * h, int * Gamma, int G_col);
+void proy(float * h, int * Gamma, int G_col);
 float T(float * x,float * df,int * Delta,float * c_a,int * reg_A,int G_col,int flag);
 int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,float * c_a,int * reg_A);
+void qp_i(float * x0, float * h_aux, int m);
+void qp_e(float * p_k, float * g_k, int * W_k, int m, float * lambda);
 
 unsigned int c_a_x=9006,c_a_y=1,D_x=355746,D_y=2,G_x=2990,G_y=1;
-int maxit=100,maxit_r=100;
-float tol=1e-12,s=1;
+int maxit=200,maxit_r=100;
+float tol=1e-12,s=1000;
 
 int main(){
 	size_t c_a_size = c_a_x * c_a_y * sizeof(float);
@@ -82,12 +84,12 @@ int min_gradPr(float * x, int * Gamma, int G_col,int * Delta,float * c_a,int * r
 	float * df = malloc(h_size);
 	float * h = malloc(h_size);
 	int ki;
-	qp_s(x,Gamma,G_col); // x=PrX(x);
+	proy(x,Gamma,G_col); // x=PrX(x);
 	f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
 	for (int i=0;i<G_col;i++){
 		h[i]=x[i]-df[i];
 	}
-	qp_s(h,Gamma,G_col);
+	proy(h,Gamma,G_col);
 	err=0;
 	for (int i=0; i<=G_col;i++){
 		err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
@@ -106,7 +108,7 @@ int min_gradPr(float * x, int * Gamma, int G_col,int * Delta,float * c_a,int * r
 		for (int i=0;i<G_col;i++){
 			h[i]=x[i]-df[i];
 		}
-		qp_s(h,Gamma,G_col);
+		proy(h,Gamma,G_col);
 		err=0;
 		for (int i=0; i<=G_col;i++){
 			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
@@ -138,23 +140,6 @@ if nargin>4&&~isempty(funregla), regla=funregla; end
 if nargin==6, pr(1:length(parregla))=parregla; end
 maxit=pm(1); tol=pm(2);
 */
-
-void qp_s(float * h, int * Gamma, int G_col){
-	size_t h_size = G_col * sizeof(float);
-	float h_aux[100];
-	int j=0,m; // j=1;
-	for (int i=0;i<G_x;i++){ // for i=1:rows(Gamma)
-		m=Gamma[i]; // m=length(find(Gamma(i,:)));
-		for (int k=j;k<j+m;k++){
-			h_aux[k-j]=h[k]; // h_aux=h0([j:j+m-1]);
-		}
-/*
-		x0=(1/m)*ones(m,1);
-		x1([j:j+m-1])=qp(x0,speye(m),-h_aux,ones(1,m),1,zeros(m,1),[]);
-*/
-		j=j+m; // j=j+m;	
-	} // endfor
-}
 
 float T(float * h,float * df,int * Delta,float * c_a,int * reg_A,int G_col,int flag){
 	size_t v_size = c_a_x * sizeof(float);
@@ -205,7 +190,7 @@ int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,
 	for (int i=0;i<G_col;i++){
 		xs[i]=x[i]-s*df[i];
 	}
-	qp_s(xs,Gamma,G_col); // xs=PrX(x-s*df); 
+	proy(xs,Gamma,G_col); // xs=PrX(x-s*df); 
 	for (int i=0;i<G_col;i++){
 		d[i]=xs[i]-x[i]; // d=xs-x;
 	}
@@ -225,5 +210,182 @@ int reg_armijoPr(float * x,float f,float * df,int G_col,int * Gamma,int * Delta,
 		fn=T(xn,df,Delta,c_a,reg_A,G_col,0); // fn=fun(xn);
 		k++; // k=k+1;
 	} // end
+	for (int i=0;i<G_col;i++){
+		x[i]=xn[i];
+	}
 	return k;
+}
+
+void proy(float * h, int * Gamma, int G_col){
+	float h_aux[100],x0[100];
+	int j=0,m; // j=1;
+	for (int i=0;i<G_x;i++){ // for i=1:rows(Gamma)
+		m=Gamma[i]; // m=length(find(Gamma(i,:)));
+		for (int k=j;k<j+m;k++){
+			h_aux[k-j]=-h[k]; // h_aux=h0([j:j+m-1]);
+		}
+		for (int k=0;k<m;k++){
+			x0[k]=1.0/((float) m); // x0=(1/m)*ones(m,1);
+		}
+		qp_i(x0,h_aux,m);
+		for (int k=j;k<j+m;k++){
+			h[k]=x0[k-j]; // x1([j:j+m-1])=qp(x0,speye(m),-h_aux,ones(1,m),1,zeros(m,1),[]);
+		}
+		j=j+m; // j=j+m;	
+	} // endfor
+}
+
+/*
+min q(x) = 0.5 x^T G x + x^T c
+
+s.a. 	a_i^T x =  b_i 	i in E
+		a_i^T x >= b_i	i in I
+
+G=Id
+c=-h_aux
+a_i=ones for i in E={1}
+b_i=1	 for i in E={1}
+a_i=e_i  for i in I={1,...,m}
+b_i=0    for i in I={1,...,m}
+*/
+
+void qp_i(float * x0, float * h_aux, int m){
+	// Compute a feasible starting point x_0
+	int * W = malloc((m+1)*sizeof(int));
+	float g_k[100],p_k[100],lambda[100],lambda_min,alpha;
+	int flag,j,block;
+	// Set W_0 to be a subset of the active constraints at x_0
+	for (int i=0;i<m;i++){
+		if (x0[i]==0){
+			W[i]=1;
+		} else {
+			W[i]=0;
+		}
+	}
+	W[m]=1;
+	for (int k=0;k<100;k++){ // for k = 0, 1, 2, . . .
+		// g_k = x_k +c
+		for (int i=0;i<m;i++){
+			g_k[i]=x0[i]+h_aux[i];
+		}
+		// p_k = min  0.5 p^T p + g_k^T p
+		//		 s.a.       p_i = 0, i in W_k-{m}
+		//			  sum_i p_i = 1 
+		qp_e(p_k,g_k,W,m,lambda);
+		flag=1;
+		for (int i=0;i<m && flag;i++){
+			if (p_k[i] != 0){
+				flag=0;
+			}
+		}
+		if (flag){ // if p_k=0
+			// Compute Lagrange multipliers λ_i that satisfy (16.42),
+			// sum_{i in W_k} a_i λ_i = g = G x_k + c 
+			flag=1;
+			for (int i=0;i<m && flag;i++){
+				if (W[i]==1 && lambda[i]<0){
+					flag=0;
+				}
+			}
+			if (flag){ // if λ_i ≥ 0 for all i ∈ W_k ∩ I
+				// stop with solution x* = x_k;
+				return;
+			} else { // else
+				// j <- argmin_{j in W_k ∩ I} λ_i
+				lambda_min=1e12;
+				for (int i=0;i<m;i++){
+					if (W[i]==1 && lambda[i]<lambda_min){
+						lambda_min=lambda[i];
+						j=i;
+					}
+				}
+				// x_{k+1} <- x_k 
+				W[j]=0; // W_k <- W_k \ {j}
+			}
+		} else { // else
+			block=-1;
+			// α_k = min{i not in W_k , p_k_i <0} (- x_k_i)/(p_k_i)
+			alpha=1e12;
+			for (int i=0;i<m;i++){
+				if (W[i]==0 && p_k[i]<0 && alpha > -x0[i]/p_k[i]) {
+					alpha=-x0[i]/p_k[i];
+					block=i;
+				}
+			}
+			// α_k = min (1 , α_k )
+			if (alpha > 1){
+				alpha=1;
+				block=-1;
+			}
+			// x_{k+1} <- x_k + α_k * p_k
+			for (int i=0;i<m;i++){
+				x0[i]+= alpha * p_k[i];
+			}
+			if (block!=-1){ // if there are blocking constraints
+				// Obtain W_{k+1} by adding one of the blocking
+				// constraints to W_k
+				W[block]=1;
+			}
+			// else
+			//     W_{k+1} <- W_k
+		}
+	} // end (for)
+	free(W);
+}
+
+/*
+p_k = min  0.5 p^T p + g_k^T p
+	  s.a.       p_i = 0, i in W_k-{m}
+		   sum_i p_i = 0 
+ 
+(    Id    -Id_{W_k}^T -ones ) ( p_k )   ( -g_k )
+( Id_{W_k}       0       0  ) (  λ* ) = (   0  )	
+(   ones         0       0  ) ( λ_m )   (   0  )
+
+p_1 - lambda_1 - lambda_m+1 = - g_k_1
+p_2 - lambda_2 - lambda_m+1 = - g_k_2
+...
+p_m - lambda_m - lambda_m+1 = - g_k_m
+p_1 = 0
+p_2 = 0
+...
+p_m = 0
+p_1 + p_2 + ... + p_m = 0
+ 
+i in W_k =>
+p_i = 0
+lambda_i + lambda_m+1 = g_k_i 
+
+i not in W_k =>
+p_i - lambda_m+1 = - g_k_i
+
+p_1 + p_2 + ... + p_m = 1 =>
+L * lambda_m+1 - sum_{i not in W_k} g_k_i = 0
+
+=>
+ 
+lambda_m+1 = ( sum_{i not in W_k} g_k_i ) / L
+
+=> tengo todo lo que quiero
+
+*/
+
+void qp_e(float * p_k, float * g_k, int * W_k, int m, float * lambda){
+	int L=0;
+	float g=0;
+	for (int i=0;i<m;i++){
+		if (W_k[i]==0){
+			L++;
+			g+=g_k[i];
+		}
+	}
+	lambda[m]=g/L;
+	for (int i=0;i<m;i++){
+		if (W_k[i]){
+			p_k[i]=0;
+			lambda[i]=g_k[i]-lambda[m];
+		} else {
+			p_k[i]=-g_k[i]+lambda[m];
+		}
+	}
 }
