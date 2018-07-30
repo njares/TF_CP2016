@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include <assert.h>
 
 #include <omp.h>
 
@@ -20,7 +21,7 @@ void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
 unsigned int c_a_x=9006,c_a_y=1,D_x=355561,D_y=2,G_x=2990,G_y=1;
 int maxit=100,maxit_r=100;
-double tol,s=1000000;
+double tol,s=1;
 
 int main(int argc, char **argv) {
 	assert(2==argc);
@@ -28,14 +29,14 @@ int main(int argc, char **argv) {
 	size_t c_a_size = c_a_x * c_a_y * sizeof(double);
 	size_t D_size = D_x * D_y * sizeof(int);
 	size_t G_size = G_x * G_y * sizeof(int);
-	int reg_A[4],salida;
+	int reg_A[4],salida=1;
 	double * c_a = malloc(c_a_size);
 	int * Delta = malloc(D_size);
 	int * Gamma = malloc(G_size);
-	cargar_int(reg_A,"data/input/reg_A",1,4); //reg_A=load(’data/input/reg_A’);
-	cargar_double(c_a,"data/input/costo_aristas",c_a_x,c_a_y); //c_a=load(’data/input/costo_aristas’);
-	cargar_int(Delta,"../grafo_completo/data/output/Delta",D_x,D_y); //Delta=load(’data/input/Delta’);
-	cargar_int(Gamma,"../grafo_completo/data/output/Gamma",G_x,G_y); //Gamma=load(’data/input/Gamma’);
+	cargar_int(reg_A,"min/data/input/reg_A",1,4); //reg_A=load(’data/input/reg_A’);
+	cargar_double(c_a,"min/data/input/costo_aristas",c_a_x,c_a_y); //c_a=load(’data/input/costo_aristas’);
+	cargar_int(Delta,"grafo_completo/data/output/Delta",D_x,D_y); //Delta=load(’data/input/Delta’);
+	cargar_int(Gamma,"grafo_completo/data/output/Gamma",G_x,G_y); //Gamma=load(’data/input/Gamma’);
 	int G_col=0;
 	for (int i=0;i<G_x;i++){
 		G_col+=Gamma[i];
@@ -54,7 +55,10 @@ int main(int argc, char **argv) {
 		}
 	}
 //[h,f,err,k,salida]=min_gradPr(@T,h0,@(x)qp_s(Gamma,x),[100 1e-12],@reg_armijoPr,[100 1000 1 1 0.5 1e -4]);
-	salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+	while(salida){
+		salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+		s*=2;
+	}
 	double * v = malloc(c_a_x * sizeof(double));
 	for (int i=0;i<c_a_x;i++){
 		v[i]=0;
@@ -63,7 +67,7 @@ int main(int argc, char **argv) {
 		v[-1+Delta[idx(i,1,D_y)]]+=h[-1+Delta[idx(i,0,D_y)]]; // v=Delta'*h;
 	}
 	FILE * v_file;
-	v_file = fopen ("data/output/v", "w+");
+	v_file = fopen ("min/data/output/v", "w+");
 	for (int i=0;i<c_a_x;i++){
 		fprintf(v_file,"%lf\n",v[i]);
 	}

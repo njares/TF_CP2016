@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include <omp.h>
 
@@ -39,9 +40,9 @@ int main(int argc, char **argv) {
     int * A = malloc(A_size);
     double * c_a = malloc(c_a_size);
     // A=load(’data/input/matriz_A_2’);
-	cargar_int(A,"data/input/matriz_A_2",A_x,A_y);
+	cargar_int(A,"grafo_completo/data/input/matriz_A_2",A_x,A_y);
 	// c_a=load(’data/input/costo_aristas’);	
-	cargar_double(c_a,"data/input/costo_aristas",c_a_x,c_a_y);
+	cargar_double(c_a,"grafo_completo/data/input/costo_aristas",c_a_x,c_a_y);
 	// c_a=c_a(find(c_a));
 	// p=mean(c_a);
 	double p=0;
@@ -56,7 +57,7 @@ int main(int argc, char **argv) {
 	}
 	p=p/n;
 	//genera_D_G(’data/input/g_OD’,A,p,3,30);
-	genera_D_G("data/input/g_OD",A,c_a,p,t_max,r_max);
+	genera_D_G("grafo_completo/data/input/g_OD",A,c_a,p,t_max,r_max);
 	free(A);
 	free(c_a);
 	return 0;
@@ -101,7 +102,7 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	double t=0; // t=0;
 	cargar_int(g_OD,ruta,g_x,g_y); // g_OD=load(input1);
 	double * nodos = malloc(nodos_size);
-	cargar_double(nodos,"data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
+	cargar_double(nodos,"grafo_completo/data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
 	
 	#pragma omp parallel shared(Delta,g_OD,A,nodos,p,t_max,r_max,c_a,ignorados,i_ign) //num_threads(n_hilos)
     {	
@@ -137,9 +138,9 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	FILE * delta_file;
 	FILE * gamma_file;
 	FILE * ignorados_file;
-	delta_file=fopen("data/output/Delta","w+");
-	gamma_file=fopen("data/output/Gamma","w+");
-	ignorados_file=fopen("data/output/ignorados","w+");
+	delta_file=fopen("grafo_completo/data/output/Delta","w+");
+	gamma_file=fopen("grafo_completo/data/output/Gamma","w+");
+	ignorados_file=fopen("grafo_completo/data/output/ignorados","w+");
 	int fila_so_far=0;
 	int D_x=0;
 	for (int i=0;i<g_x;i++){
