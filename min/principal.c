@@ -20,8 +20,8 @@ void qp_i(double * x0, double * h_aux, int m);
 void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
 unsigned int c_a_x=9006,c_a_y=1,D_x=355561,D_y=2,G_x=2990,G_y=1;
-int maxit=100,maxit_r=100;
-double tol,s=1;
+int maxit=100,maxit_r=100,nn=0;
+double tol,s=1000;
 
 int main(int argc, char **argv) {
 	assert(2==argc);
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
 		G_col+=Gamma[i];
 	}
 	size_t h_size = G_col * sizeof(double);
-	tol=DBL_EPSILON*G_col*10;
+	tol=DBL_EPSILON*G_col;
 	double * h = malloc(h_size);
 	int acum=0,k=0;
 	for (int i=0;i<G_col;i++){	//for i=1:rows(Gamma)
@@ -55,10 +55,28 @@ int main(int argc, char **argv) {
 		}
 	}
 //[h,f,err,k,salida]=min_gradPr(@T,h0,@(x)qp_s(Gamma,x),[100 1e-12],@reg_armijoPr,[100 1000 1 1 0.5 1e -4]);
-	while(salida){
-		salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
-		s*=2;
+	int flag=0;
+	double start=omp_get_wtime();
+	while(salida && nn<200){
+		if (flag){
+			s=s/2;
+			if (s<DBL_EPSILON*10){
+				s=1000;
+				flag=0;
+				salida=1;
+				continue;
+			}
+			salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+		} else if (salida==3){
+			s=s/2;
+			salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+			flag=1;
+		} else {
+			s=s*2;
+			salida=min_gradPr(h,Gamma,G_col,Delta,c_a,reg_A);
+		}
 	}
+	printf("%f\n",omp_get_wtime()-start);
 	double * v = malloc(c_a_x * sizeof(double));
 	for (int i=0;i<c_a_x;i++){
 		v[i]=0;
@@ -108,7 +126,7 @@ unsigned int idx(unsigned int x, unsigned int y, unsigned int stride) {
 
 int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int * reg_A){
 	size_t h_size = G_col * sizeof(double);
-	double f, err;
+	double f, err,fold;
 	double * df = malloc(h_size);
 	double * h = malloc(h_size);
 	int ki;
@@ -120,32 +138,47 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 	proy(h,Gamma,G_col);
 	err=0;
 	for (int i=0; i<G_col;i++){
-		err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+		if (fabs(x[i]-h[i])>(tol/G_col)*1e8){
+			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+		}
 	}
 	err=sqrt(err);
 	for (int i=0;i<maxit;i++){ // for k=0:maxit
-		printf("iter_min=%d fun=%.14lf err=%.14lf\n",i+1,f,err); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
+		//printf("iter_min=%d fun=%.16lf err=%.16lf s=%lf\n",nn++,f,err,s); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
 		if (err<tol){ // if err<tol
 			free(df);
 			free(h);
 			return 0; // salida=0;
 		} // end
 		ki=reg_armijoPr(x,f,df,G_col,Gamma,Delta,c_a,reg_A); // [x,t,ki]=regla(fun,x,PrX,f,df,pr);
+		if (ki==-1){
+			free(df);
+			free(h);
+			return 4; // salida=3;
+		}
 		if (ki>=maxit_r){ // if ki>=pr(1)
 			free(df);
 			free(h);
 			return 3; // salida=3;
 		} // end
+		fold=f;
 		f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
+		if (fold==f){
+			free(df);
+			free(h);
+			return 2; // salida=0;
+		}
 		for (int i=0;i<G_col;i++){
 			h[i]=x[i]-df[i];
 		}
 		proy(h,Gamma,G_col);
 		err=0;
 		for (int i=0; i<G_col;i++){
-			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+			if (fabs(x[i]-h[i])>(tol/G_col)*1e8){
+				err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
+			}
 		}
-		err=sqrt(err);		
+		err=sqrt(err);
 	} // end
 	free(df);
 	free(h);
@@ -221,10 +254,10 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 	double * xs = malloc(h_size);
 	double * d = malloc(h_size);
 	double * xn = malloc(h_size);
-	double alpha=1,fn,d_aux=0;
+	double alpha=1,fn,d_aux=0,s_aux=s;
 	int k=0;
 	for (int i=0;i<G_col;i++){
-		xs[i]=x[i]-s*df[i];
+		xs[i]=x[i]-s_aux*df[i];
 	}
 	proy(xs,Gamma,G_col); // xs=PrX(x-s*df); 
 	for (int i=0;i<G_col;i++){
@@ -237,18 +270,40 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 	for (int i=0;i<G_col;i++){
 		d_aux+=df[i]*d[i];
 	}
-	while (fn>f+alpha*(1e-4)*d_aux && k<maxit_r){ // while fn>f+alpha*sig*df'*d && k<=maxit
-		printf("    iter_reg=%d fun_n=%.14lf fun=%.14lf\n",k+1,fn,f); //printf ("iter_reg=%d fun_n=%e fun=%e\n",k,fn,f)
-		alpha=0.5*alpha; // alpha=ra*alpha;
+//	if (d_aux>=0){
+//		free(xs);
+//		free(d);
+//		free(xn);
+//		return -1;
+//	}
+//	printf("d_aux=%.16f ",d_aux);
+	while (fn>f+alpha*(1e-4)*d_aux && k<maxit_r && d_aux<0){ // while fn>f+alpha*sig*df'*d && k<=maxit
+		//printf("    iter_reg=%d fun_n=%.14lf fun=%.14lf\n",k+1,fn,f); //printf ("iter_reg=%d fun_n=%e fun=%e\n",k,fn,f)
+		s_aux=0.5*s_aux;
+//		alpha=0.5*alpha; // alpha=ra*alpha;
+		for (int i=0;i<G_col;i++){
+			xs[i]=x[i]-s_aux*df[i];
+		}
+		proy(xs,Gamma,G_col); // xs=PrX(x-s*df); 
+		for (int i=0;i<G_col;i++){
+			d[i]=xs[i]-x[i]; // d=xs-x;
+		}
 		for (int i=0;i<G_col;i++){
 			xn[i]=x[i]+alpha*d[i]; // xn=x+alpha*d;
 		}
 		fn=T(xn,df,Delta,c_a,reg_A,G_col,0); // fn=fun(xn);
+		d_aux=0;
+		for (int i=0;i<G_col;i++){
+			d_aux+=df[i]*d[i];
+		}
 		k++; // k=k+1;
 	} // end
-	for (int i=0;i<G_col;i++){
-		x[i]=xn[i];
-	}
+	if (k<maxit_r && d_aux<0){
+		for (int i=0;i<G_col;i++){
+			x[i]=xn[i];
+		}
+	}	
+//	proy(x,Gamma,G_col);
 	free(xs);
 	free(d);
 	free(xn);
@@ -343,12 +398,14 @@ void qp_i(double * x0, double * h_aux, int m){
 			} else { // else
 				// j <- argmin_{j in W_k ∩ I} λ_i
 				lambda_min=1e12;
+				j=-1;
 				for (int i=0;i<m;i++){
 					if (W[i]==1 && lambda[i]<lambda_min){
 						lambda_min=lambda[i];
 						j=i;
 					}
 				}
+				assert(j!=-1);
 				// x_{k+1} <- x_k 
 				W[j]=0; // W_k <- W_k \ {j}
 			}

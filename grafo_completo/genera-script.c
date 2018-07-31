@@ -56,8 +56,10 @@ int main(int argc, char **argv) {
 		}
 	}
 	p=p/n;
+	double start=omp_get_wtime();
 	//genera_D_G(’data/input/g_OD’,A,p,3,30);
 	genera_D_G("grafo_completo/data/input/g_OD",A,c_a,p,t_max,r_max);
+	printf("%f\n",omp_get_wtime()-start);
 	free(A);
 	free(c_a);
 	return 0;
@@ -151,7 +153,7 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		fila_so_far+=Delta[i].val[idx(Delta[i].largo-1,0,2)];
 		D_x+=Delta[i].largo;
 	}
-	printf("%d\n",D_x);
+	//printf("%d\n",D_x);
 	for (int i=0;i<i_ign;i++){
 		fprintf(ignorados_file,"%d\n",ignorados[i]); // dlmwrite("data/output/ignorados",ignorados,'	')
 	}
