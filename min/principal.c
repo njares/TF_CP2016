@@ -9,6 +9,8 @@
 
 #include <omp.h>
 
+#define N 100
+
 void cargar_int(int * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_size);
 unsigned int idx(unsigned int i, unsigned int j, unsigned int stride);
@@ -20,8 +22,8 @@ void qp_i(double * x0, double * h_aux, int m);
 void qp_e(double * p_k, double * g_k, int * W_k, int m, double * lambda);
 
 unsigned int c_a_x=9006,c_a_y=1,D_x=355561,D_y=2,G_x=2990,G_y=1;
-int maxit=100,maxit_r=100,nn=0;
-double tol,s=1000;
+int maxit=50,maxit_r=50,nn=0;
+double tol,s=100;
 
 int main(int argc, char **argv) {
 	assert(2==argc);
@@ -57,7 +59,7 @@ int main(int argc, char **argv) {
 //[h,f,err,k,salida]=min_gradPr(@T,h0,@(x)qp_s(Gamma,x),[100 1e-12],@reg_armijoPr,[100 1000 1 1 0.5 1e -4]);
 	int flag=0;
 	double start=omp_get_wtime();
-	while(salida && nn<200){
+	while(salida && nn<500){
 		if (flag){
 			s=s/2;
 			if (s<DBL_EPSILON*10){
@@ -126,7 +128,7 @@ unsigned int idx(unsigned int x, unsigned int y, unsigned int stride) {
 
 int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int * reg_A){
 	size_t h_size = G_col * sizeof(double);
-	double f, err,fold;
+	double f, err; //,fold;
 	double * df = malloc(h_size);
 	double * h = malloc(h_size);
 	int ki;
@@ -138,13 +140,13 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 	proy(h,Gamma,G_col);
 	err=0;
 	for (int i=0; i<G_col;i++){
-		if (fabs(x[i]-h[i])>(tol/G_col)*1e8){
+		if (fabs(x[i]-h[i])> (10*tol*D_x*D_x)/(G_col*c_a_x*G_col) ) {
 			err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
 		}
 	}
 	err=sqrt(err);
 	for (int i=0;i<maxit;i++){ // for k=0:maxit
-		//printf("iter_min=%d fun=%.16lf err=%.16lf s=%lf\n",nn++,f,err,s); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
+		printf("iter_min=%d fun=%.16lf err=%.16lf s=%lf\n",nn++,f,err,s); // printf ("iter_min=%d fun=%e err=%e\n",k,f,err)
 		if (err<tol){ // if err<tol
 			free(df);
 			free(h);
@@ -161,20 +163,22 @@ int min_gradPr(double * x, int * Gamma, int G_col,int * Delta,double * c_a,int *
 			free(h);
 			return 3; // salida=3;
 		} // end
-		fold=f;
+		// fold=f;
 		f=T(x,df,Delta,c_a,reg_A,G_col,1); // [f,df]=fun(x,[1,1]);
+		/*
 		if (fold==f){
 			free(df);
 			free(h);
 			return 2; // salida=0;
 		}
+		*/
 		for (int i=0;i<G_col;i++){
 			h[i]=x[i]-df[i];
 		}
 		proy(h,Gamma,G_col);
 		err=0;
 		for (int i=0; i<G_col;i++){
-			if (fabs(x[i]-h[i])>(tol/G_col)*1e8){
+			if (fabs(x[i]-h[i])> (10*tol*D_x*D_x)/(G_col*c_a_x*G_col) ){
 				err += (x[i] - h[i])*(x[i] - h[i]); // err=norm(x-PrX(x-df));
 			}
 		}
@@ -270,14 +274,14 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 	for (int i=0;i<G_col;i++){
 		d_aux+=df[i]*d[i];
 	}
-//	if (d_aux>=0){
-//		free(xs);
-//		free(d);
-//		free(xn);
-//		return -1;
-//	}
+	if (d_aux>=0){
+		free(xs);
+		free(d);
+		free(xn);
+		return -1;
+	}
 //	printf("d_aux=%.16f ",d_aux);
-	while (fn>f+alpha*(1e-4)*d_aux && k<maxit_r && d_aux<0){ // while fn>f+alpha*sig*df'*d && k<=maxit
+	while (fn>f+alpha*(1e-4)*d_aux && k<maxit_r){ // while fn>f+alpha*sig*df'*d && k<=maxit
 		//printf("    iter_reg=%d fun_n=%.14lf fun=%.14lf\n",k+1,fn,f); //printf ("iter_reg=%d fun_n=%e fun=%e\n",k,fn,f)
 		s_aux=0.5*s_aux;
 //		alpha=0.5*alpha; // alpha=ra*alpha;
@@ -292,13 +296,9 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 			xn[i]=x[i]+alpha*d[i]; // xn=x+alpha*d;
 		}
 		fn=T(xn,df,Delta,c_a,reg_A,G_col,0); // fn=fun(xn);
-		d_aux=0;
-		for (int i=0;i<G_col;i++){
-			d_aux+=df[i]*d[i];
-		}
 		k++; // k=k+1;
 	} // end
-	if (k<maxit_r && d_aux<0){
+	if (k<maxit_r){
 		for (int i=0;i<G_col;i++){
 			x[i]=xn[i];
 		}
@@ -312,7 +312,7 @@ int reg_armijoPr(double * x,double f,double * df,int G_col,int * Gamma,int * Del
 
 void proy(double * h, int * Gamma, int G_col){
 	size_t i_size = G_x * sizeof(int);
-	double h_aux[100],x0[100];
+	double h_aux[N],x0[N];
 	int * i_aux = malloc(i_size);
 	int j=0,m; // j=1;
 	for (int i =0;i<G_x;i++){
@@ -356,7 +356,7 @@ b_i=0    for i in I={1,...,m}
 void qp_i(double * x0, double * h_aux, int m){
 	// Compute a feasible starting point x_0
 	int * W = malloc((m+1)*sizeof(int));
-	double g_k[100],p_k[100],lambda[100],lambda_min,alpha;
+	double g_k[N],p_k[N],lambda[N+1],lambda_min,alpha;
 	int flag,j,block;
 	// Set W_0 to be a subset of the active constraints at x_0
 	for (int i=0;i<m;i++){
