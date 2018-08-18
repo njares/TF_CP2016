@@ -220,10 +220,15 @@ unsigned int rutas(int * delta_aux, int i,int j,
 			i_max=0;
 			i_min=n_max+1;
 */
-			start=clock(); // tic
-			end=clock();
-			t= (double) (end-start)/CLOCKS_PER_SEC;
+			start=omp_get_wtime(); // tic
+			t= 0;
+			int i_clock=0;
 			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
+				i_clock++;
+				if (i_clock%128 == 0) {
+					end=omp_get_wtime();
+					t=end-start;
+				}
 				// % pongo el ultimo elemento de la pila en v
 				memcpy(&current[0],&s[idx(i_s-1,0,n_max)],n_max*sizeof(int));// v=s(rows(s),:);	
 				// % saco el ultimo elemento de la pila
@@ -322,10 +327,15 @@ unsigned int rutas(int * delta_aux, int i,int j,
 			i_max=0;
 			i_min=n_max+1;
 */
-			start=clock(); // tic
-			end=clock();
-			t= (double) (end-start)/CLOCKS_PER_SEC;
+			start=omp_get_wtime(); // tic
+			t= 0;
+			int i_clock=0;
 			while (i_s!=0 && t<t_max && i_n < r_max) { // while (rows(s)!=0 && toc<t_max && rows(n)<r_max)
+				i_clock++;
+				if (i_clock%128 == 0) {
+					end=omp_get_wtime();
+					t=end-start;
+				}
 				memcpy(&current[0],&s[idx(i_s-1,0,n_max)],n_max*sizeof(int));// v=s(rows(s),:);	
 				memset(&s[idx(i_s-1,0,n_max)],-1,n_max*sizeof(int));
 				i_s--; // s=s([1:rows(s)-1],:);
