@@ -298,8 +298,8 @@ unsigned int rutas(int * delta_aux, int i,int j,
 						}
 					}
 				} // endif
-			end=clock();
-			t= (double) (end-start)/CLOCKS_PER_SEC;
+			//end=clock();
+			//t= (double) (end-start)/CLOCKS_PER_SEC;
 			} // endwhile
 		}else{ // else % Lo mismo, pero 'contramano'
 			i=-i; // i=-i;
@@ -392,8 +392,8 @@ unsigned int rutas(int * delta_aux, int i,int j,
 						}
 					}
 				} // endif
-			end=clock();
-			t= (double) (end-start)/CLOCKS_PER_SEC;
+			//end=clock();
+			//t= (double) (end-start)/CLOCKS_PER_SEC;
 			} // endwhile			
 		} // endif
 		// % reconstruyo los caminos para devolverlos
