@@ -15,8 +15,8 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p,double t_max,unsign
 unsigned int rutas(int * delta_aux, int i, int j,
 	int * A, double * nodos, double p, double t_max, unsigned int r_max, double * c_a);
 unsigned int a_star(unsigned int * y_aux, int i, int j, int * A, double * nodos, double * c_a);
-unsigned int salientes(int * i_1, int o, int * A);
-unsigned int entrantes(int * i_1, int d, int * A);
+unsigned int salientes(unsigned int * i_1, int o, int * A);
+unsigned int entrantes(unsigned int * i_1, int d, int * A);
 unsigned int indice_min(double * n_star);
 unsigned int arista(unsigned int i_star, unsigned int i_1, int * A);
 unsigned int dist_n(int s, int j, double p, double * nodos);
@@ -29,6 +29,7 @@ double t_max;
 typedef struct delta_t {
     int * val;
     unsigned int largo;
+    double t;
 } delta_t;
 
 int main(int argc, char **argv) {
@@ -40,9 +41,9 @@ int main(int argc, char **argv) {
     int * A = malloc(A_size);
     double * c_a = malloc(c_a_size);
     // A=load(’data/input/matriz_A_2’);
-	cargar_int(A,"grafo_completo/data/input/matriz_A_2",A_x,A_y);
+	cargar_int(A,"Data/matriz_A_2",A_x,A_y);
 	// c_a=load(’data/input/costo_aristas’);	
-	cargar_double(c_a,"grafo_completo/data/input/costo_aristas",c_a_x,c_a_y);
+	cargar_double(c_a,"Data/costo_aristas",c_a_x,c_a_y);
 	// c_a=c_a(find(c_a));
 	// p=mean(c_a);
 	double p=0;
@@ -58,7 +59,7 @@ int main(int argc, char **argv) {
 	p=p/n;
 	double start=omp_get_wtime();
 	//genera_D_G(’data/input/g_OD’,A,p,3,30);
-	genera_D_G("grafo_completo/data/input/g_OD",A,c_a,p,t_max,r_max);
+	genera_D_G("Data/g_OD",A,c_a,p,t_max,r_max);
 	printf("%f\n",omp_get_wtime()-start);
 	free(A);
 	free(c_a);
@@ -92,7 +93,7 @@ void cargar_double(double * A, char * ruta, unsigned int X_size, unsigned int Y_
 }
 
 void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsigned int r_max){
-	unsigned int g_x=2990,g_y=2,cant_rutas,i_ign=0;
+	unsigned int g_x=2990,g_y=2,i_ign=0;
 	size_t g_size = g_x * g_y * sizeof(int);
 	size_t delta_size = c_a_x * r_max * 2 * sizeof(int);
 	size_t nodos_size = n_x * n_y * sizeof(double);
@@ -100,15 +101,15 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	struct delta_t * Delta = malloc(g_x*sizeof(delta_t));
 	int * ignorados = malloc(g_size);
 	memset(ignorados, -1, g_size); // ignorados=[];
-	clock_t end,start;
-	double t=0; // t=0;
+	// clock_t end,start;
+	// double t=0; // t=0;
 	cargar_int(g_OD,ruta,g_x,g_y); // g_OD=load(input1);
 	double * nodos = malloc(nodos_size);
-	cargar_double(nodos,"grafo_completo/data/input/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
+	cargar_double(nodos,"Data/nodos_amp",n_x,n_y);	// nodos=load("data/input/nodos_amp");
 	
 	#pragma omp parallel shared(Delta,g_OD,A,nodos,p,t_max,r_max,c_a,ignorados,i_ign) //num_threads(n_hilos)
     {	
-	#pragma omp for schedule(guided)
+	#pragma omp for schedule(static,1)
 	for (int i=0;i<g_x;i++){ // for i=1:rows(g_OD)
 		//start=clock(); // tic
 		// printf("Procesando par %d de %d...\n",i,rows(g_OD))
@@ -116,8 +117,10 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 		// y=rutas(g_OD(i,1),g_OD(i,2),A,p,t_max,r_max);
 		Delta[i].val = malloc(delta_size);
 		memset(Delta[i].val, 0, delta_size);
+		double start=omp_get_wtime();
 		Delta[i].largo=rutas(Delta[i].val,g_OD[idx(i,0,g_y)],g_OD[idx(i,1,g_y)],
 			A,nodos,p,t_max,r_max,c_a);
+		Delta[i].t=omp_get_wtime()-start;
 		// printf("Procesado par %d de %d\n",i,rows(g_OD))
 		//printf("Procesado par %d de %d\n",i+1,g_x);
 		if (Delta[i].largo==0){ // if (length(y)==0)
@@ -140,16 +143,16 @@ void genera_D_G(char * ruta, int * A, double * c_a, double p, double t_max, unsi
 	FILE * delta_file;
 	FILE * gamma_file;
 	FILE * ignorados_file;
-	delta_file=fopen("grafo_completo/data/output/Delta","w+");
-	gamma_file=fopen("grafo_completo/data/output/Gamma","w+");
-	ignorados_file=fopen("grafo_completo/data/output/ignorados","w+");
+	delta_file=fopen("Data/Delta","w+");
+	gamma_file=fopen("Data/Gamma","w+");
+	ignorados_file=fopen("Data/ignorados","w+");
 	int fila_so_far=0;
 	int D_x=0;
 	for (int i=0;i<g_x;i++){
 		for (int j=0;j<Delta[i].largo;j++){
 			fprintf(delta_file,"%d %d\n",Delta[i].val[idx(j,0,2)]+fila_so_far,Delta[i].val[idx(j,1,2)]); // dlmwrite("data/output/Delta",[i j x],'	')
 		}
-		fprintf(gamma_file,"%d\n",Delta[i].val[idx(Delta[i].largo-1,0,2)]); // dlmwrite("data/output/Gamma",[i j x],'	')
+		fprintf(gamma_file,"%d %f\n",Delta[i].val[idx(Delta[i].largo-1,0,2)],Delta[i].t); // dlmwrite("data/output/Gamma",[i j x],'	')
 		fila_so_far+=Delta[i].val[idx(Delta[i].largo-1,0,2)];
 		D_x+=Delta[i].largo;
 	}
@@ -579,7 +582,7 @@ unsigned int a_star(unsigned int * y_aux, int o, int d, int * A, double * nodos,
 	} // endif
 } // endfunction
 
-unsigned int salientes(int * i_1, int o, int * A){
+unsigned int salientes(unsigned int * i_1, int o, int * A){
 // o es indice grafo
 // i_1 guarda indices grafo
 	int i_aux[30],size=0,k=0;
@@ -602,7 +605,7 @@ unsigned int salientes(int * i_1, int o, int * A){
 	return size;
 }
 
-unsigned int entrantes(int * i_1, int d, int * A){
+unsigned int entrantes(unsigned int * i_1, int d, int * A){
 // d es indice grafo
 // i_1 guarda indices grafo
 	int i_aux[30],size=0,k=0;
@@ -628,15 +631,18 @@ unsigned int entrantes(int * i_1, int d, int * A){
 unsigned int indice_min(double * n_star){
 // i_min es indice C
 	unsigned int i_min;
+	int i_aux=-1;
 	double min=100000000;
 	for (int i=0;i<n_x;i++){
 		if (n_star[idx(i,0,4)]==1) {
 			if (min>n_star[idx(i,1,4)]+n_star[idx(i,2,4)]) {
 				min=n_star[idx(i,1,4)]+n_star[idx(i,2,4)];
-				i_min=i;
+				i_aux=i;
 			}
 		}
 	}
+	assert(i_aux!=-1);
+	i_min=i_aux;
 	return i_min;
 }
 
